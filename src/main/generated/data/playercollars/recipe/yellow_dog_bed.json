@@ -1,6 +1,5 @@
 {
   "type": "minecraft:crafting_shaped",
-  "category": "misc",
   "group": "dog_bed",
   "key": {
     "w": "minecraft:yellow_wool"
@@ -10,7 +9,6 @@
     "www"
   ],
   "result": {
-    "count": 1,
     "id": "playercollars:yellow_dog_bed"
   }
 }

@@ -1,6 +1,5 @@
 {
   "type": "minecraft:crafting_shaped",
-  "category": "misc",
   "group": "foot_paws",
   "key": {
     "l": "minecraft:leather",
@@ -12,7 +11,6 @@
     "wlw"
   ],
   "result": {
-    "count": 1,
     "id": "playercollars:blue_foot_paws"
   }
 }

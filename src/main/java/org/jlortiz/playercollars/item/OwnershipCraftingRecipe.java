@@ -2,56 +2,38 @@ package org.jlortiz.playercollars.item;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.recipe.*;
-import net.minecraft.recipe.book.CraftingRecipeCategory;
-import net.minecraft.recipe.input.CraftingRecipeInput;
-import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.world.World;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.CraftingBookCategory;
+import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.CustomRecipe;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.PlacementInfo;
+import net.minecraft.world.item.crafting.RecipeBookCategories;
+import net.minecraft.world.item.crafting.RecipeBookCategory;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.RecipeSerializers;
+import net.minecraft.world.level.Level;
 import org.jlortiz.playercollars.OwnerComponent;
 import org.jlortiz.playercollars.PlayerCollarsMod;
 
 import java.util.List;
 
-public class OwnershipCraftingRecipe extends SpecialCraftingRecipe {
-    private IngredientPlacement ingredientPlacement;
+public class OwnershipCraftingRecipe extends CustomRecipe {
+    private final CraftingBookCategory category;
+    private PlacementInfo ingredientPlacement;
     private final Ingredient base;
 
-    public OwnershipCraftingRecipe(CraftingRecipeCategory category, Ingredient base) {
-        super(category);
+    public OwnershipCraftingRecipe(CraftingBookCategory category, Ingredient base) {
+        super();
+        this.category = category;
         this.base = base;
     }
 
-    public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-        if (!craftingRecipeInput.getRecipeMatcher().isCraftable(this, null)) return false;
-
-        for (int i = 0; i < craftingRecipeInput.size(); i++) {
-            ItemStack is = craftingRecipeInput.getStackInSlot(i);
-            if (base.test(is) && is.get(PlayerCollarsMod.OWNER_COMPONENT_TYPE) != null) return false;
-        }
-        return true;
-    }
-
-    public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-        ItemStack output = ItemStack.EMPTY;
-        OwnerComponent owner = null;
-
-        for(int j = 0; j < craftingRecipeInput.size(); j++) {
-            ItemStack is = craftingRecipeInput.getStackInSlot(j);
-            if (!is.isEmpty()) {
-                if (is.isOf(PlayerCollarsMod.DEED_OF_OWNERSHIP_STAMPED)) {
-                    owner = is.get(PlayerCollarsMod.OWNER_COMPONENT_TYPE);
-                } else if (base.test(is)) {
-                    output = is.copy();
-                }
-            }
-        }
-
-        if (owner == null || output.isEmpty()) return ItemStack.EMPTY;
-        output.set(PlayerCollarsMod.OWNER_COMPONENT_TYPE, owner);
-        return output;
+    @Override
+    public CraftingBookCategory category() {
+        return this.category;
     }
 
     private Ingredient getBase() {
@@ -59,37 +41,70 @@ public class OwnershipCraftingRecipe extends SpecialCraftingRecipe {
     }
 
     @Override
-    public IngredientPlacement getIngredientPlacement() {
+    public PlacementInfo placementInfo() {
         if (ingredientPlacement == null) {
-            ingredientPlacement = IngredientPlacement.forShapeless(List.of(base, Ingredient.ofItem(PlayerCollarsMod.DEED_OF_OWNERSHIP_STAMPED)));
+            ingredientPlacement =
+                PlacementInfo.create(List.of(base, Ingredient.of(PlayerCollarsMod.DEED_OF_OWNERSHIP_STAMPED)));
         }
 
         return ingredientPlacement;
     }
 
+    public static RecipeSerializer<OwnershipCraftingRecipe> SERIALIZER = new RecipeSerializer<>(
+        RecordCodecBuilder.mapCodec((builder) -> builder.group(
+                CraftingBookCategory.CODEC.fieldOf("category")
+                    .orElse(CraftingBookCategory.MISC)
+                    .forGetter(OwnershipCraftingRecipe::category),
+                Ingredient.CODEC.fieldOf("base").forGetter(OwnershipCraftingRecipe::getBase))
+            .apply(builder, OwnershipCraftingRecipe::new)), StreamCodec.composite(
+        CraftingBookCategory.STREAM_CODEC,
+        OwnershipCraftingRecipe::category,
+        Ingredient.CONTENTS_STREAM_CODEC,
+        OwnershipCraftingRecipe::getBase,
+        OwnershipCraftingRecipe::new));
+
+
     @Override
-    public RecipeSerializer<? extends SpecialCraftingRecipe> getSerializer() {
-        return Serializer.INSTANCE;
-    }
-
-    public static class Serializer implements RecipeSerializer<OwnershipCraftingRecipe> {
-        public static final Serializer INSTANCE = new Serializer();
-
-        private static final MapCodec<OwnershipCraftingRecipe> CODEC = RecordCodecBuilder.mapCodec((builder) -> builder.group(
-            CraftingRecipeCategory.CODEC.fieldOf("category").orElse(CraftingRecipeCategory.MISC).forGetter(CraftingRecipe::getCategory),
-            Ingredient.CODEC.fieldOf("base").forGetter(OwnershipCraftingRecipe::getBase)
-        ).apply(builder, OwnershipCraftingRecipe::new));
-        public static final PacketCodec<RegistryByteBuf, OwnershipCraftingRecipe> PACKET_CODEC = PacketCodec.tuple(
-                CraftingRecipeCategory.PACKET_CODEC, CraftingRecipe::getCategory,
-                Ingredient.PACKET_CODEC, OwnershipCraftingRecipe::getBase, OwnershipCraftingRecipe::new
-        );
-
-        public MapCodec<OwnershipCraftingRecipe> codec() {
-            return CODEC;
+    public boolean matches(CraftingInput input, Level level) {
+        if (!input.stackedContents().canCraft(this, null)) {
+            return false;
         }
 
-        public PacketCodec<RegistryByteBuf, OwnershipCraftingRecipe> packetCodec() {
-            return PACKET_CODEC;
+        for (int i = 0; i < input.size(); i++) {
+            ItemStack is = input.getItem(i);
+            if (base.test(is) && is.get(PlayerCollarsMod.OWNER_COMPONENT_TYPE) != null) {
+                return false;
+            }
         }
+        return true;
     }
+
+    @Override
+    public ItemStack assemble(CraftingInput input) {
+        ItemStack output = ItemStack.EMPTY;
+        OwnerComponent owner = null;
+
+        for (int j = 0; j < input.size(); j++) {
+            ItemStack is = input.getItem(j);
+            if (!is.isEmpty()) {
+                if (is.is(PlayerCollarsMod.DEED_OF_OWNERSHIP_STAMPED)) {
+                    owner = is.get(PlayerCollarsMod.OWNER_COMPONENT_TYPE);
+                } else if (base.test(is)) {
+                    output = is.copy();
+                }
+            }
+        }
+
+        if (owner == null || output.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        output.set(PlayerCollarsMod.OWNER_COMPONENT_TYPE, owner);
+        return output;
+    }
+
+    public RecipeSerializer<? extends CustomRecipe> getSerializer() {
+        return SERIALIZER;
+    }
+
+
 }

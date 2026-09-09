@@ -2,68 +2,78 @@ package org.jlortiz.playercollars.item;
 
 import io.wispforest.accessories.api.AccessoriesCapability;
 import io.wispforest.accessories.api.slot.SlotEntryReference;
-import net.minecraft.component.EnchantmentEffectComponentTypes;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.*;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundEvents;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.*;
-import net.minecraft.world.World;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.level.Level;
 import org.jlortiz.playercollars.PlayerCollarsMod;
 
 public class SpatulaItem extends Item {
-    public static final RegistryKey<Item> REGISTRY_KEY = RegistryKey.of(RegistryKeys.ITEM, Identifier.of(PlayerCollarsMod.MOD_ID, "golden_spatula"));
+    public static final ResourceKey<Item>
+        REGISTRY_KEY = ResourceKey.create(Registries.ITEM, PlayerCollarsMod.id("golden_spatula"));
     public SpatulaItem() {
-        super(new Item.Settings().maxCount(1).maxDamage(8).registryKey(REGISTRY_KEY));
+        super(new Item.Properties().stacksTo(1).durability(8).setId(REGISTRY_KEY));
     }
 
     @Override
-    public ActionResult use(World world, PlayerEntity user, Hand hand) {
-        if (user.isSneaking()) {
-            ActionResult res = useOnEntity(user.getStackInHand(hand), user, user, hand);
-            if (res.isAccepted()) return ActionResult.SUCCESS;
+    public InteractionResult use(Level level, Player user, InteractionHand hand) {
+        if (user.isCrouching()) {
+            InteractionResult res = interactLivingEntity(user.getItemInHand(hand), user, user, hand);
+            if (res.consumesAction()) return InteractionResult.SUCCESS;
         }
-        return super.use(world, user, hand);
+        return super.use(level, user, hand);
     }
 
     @Override
-    public ActionResult useOnEntity(ItemStack stack, PlayerEntity user, LivingEntity entity, Hand hand) {
-        ServerWorld world = null;
-        if (!entity.getWorld().isClient)
-            world = (ServerWorld) entity.getWorld();
+    public InteractionResult interactLivingEntity(
+        ItemStack itemStack,
+        Player player,
+        LivingEntity target,
+        InteractionHand type) {
+
+        ServerLevel world = null;
+        if (!player.level().isClientSide())
+            world = (ServerLevel) player.level();
 
         int count = 0;
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            if (!slot.isArmorSlot()) continue;
-            ItemStack is = entity.getEquippedStack(slot);
-            if (EnchantmentHelper.hasAnyEnchantmentsWith(is, EnchantmentEffectComponentTypes.PREVENT_ARMOR_CHANGE)) {
+            if (!slot.isArmor()) continue;
+            ItemStack is = target.getItemBySlot(slot);
+            if (EnchantmentHelper.has(is, EnchantmentEffectComponents.PREVENT_ARMOR_CHANGE)) {
                 count++;
                 if (world != null)
-                    entity.dropStack(world, is);
-                entity.equipStack(slot, ItemStack.EMPTY);
+                    target.spawnAtLocation(world, is);
+                target.setItemSlot(slot, ItemStack.EMPTY);
             }
         }
 
-        AccessoriesCapability cap = AccessoriesCapability.get(entity);
+        AccessoriesCapability cap = AccessoriesCapability.get(target);
         if (cap != null) {
             for (SlotEntryReference p : cap.getAllEquipped()) {
-                if (EnchantmentHelper.hasAnyEnchantmentsWith(p.stack(), EnchantmentEffectComponentTypes.PREVENT_ARMOR_CHANGE)) {
+                if (EnchantmentHelper.has(p.stack(), EnchantmentEffectComponents.PREVENT_ARMOR_CHANGE)) {
                     count++;
                     if (world != null)
-                        entity.dropStack(world, p.stack());
+                        target.spawnAtLocation(world, p.stack());
                     p.reference().setStack(ItemStack.EMPTY);
                 }
             }
         }
 
-        if (count == 0) return ActionResult.PASS;
-        stack.damage(count, user, LivingEntity.getSlotForHand(hand));
-        entity.playSound(SoundEvents.ITEM_WOLF_ARMOR_BREAK);
-        return ActionResult.SUCCESS;
+        if (count == 0) return InteractionResult.PASS;
+        itemStack.hurtAndBreak(count, player, type.asEquipmentSlot());
+        target.playSound(SoundEvents.WOLF_ARMOR_BREAK.value());
+        return InteractionResult.SUCCESS;
     }
 }

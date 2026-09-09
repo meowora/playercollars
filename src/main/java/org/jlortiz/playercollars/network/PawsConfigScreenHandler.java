@@ -1,25 +1,25 @@
 package org.jlortiz.playercollars.network;
 
 import com.mojang.datafixers.util.Either;
-import net.minecraft.block.Block;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.Inventory;
-import net.minecraft.inventory.SimpleInventory;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemConvertible;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.registry.tag.TagKey;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.ScreenHandlerType;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.world.World;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.Container;
+import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ItemLike;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import org.jlortiz.playercollars.PlayerCollarsMod;
 
 import java.util.ArrayList;
@@ -27,49 +27,49 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-public abstract class PawsConfigScreenHandler<T extends ItemConvertible> extends ScreenHandler {
-    private final Inventory inventory;
-    public final List<Either<TagKey<T>, RegistryKey<T>>> data;
-    public List<Either<TagKey<T>, RegistryKey<T>>> listToDisplay;
+public abstract class PawsConfigScreenHandler<T extends ItemLike> extends AbstractContainerMenu {
+    private final Container inventory;
+    public final List<Either<TagKey<T>, ResourceKey<T>>> data;
+    public List<Either<TagKey<T>, ResourceKey<T>>> listToDisplay;
     protected ItemStack[] pawsStacks;
-    protected final World world;
+    protected final Level world;
 
-    public PawsConfigScreenHandler(ScreenHandlerType<? extends PawsConfigScreenHandler<T>> id, int syncId,
-                                   PlayerInventory playerInventory, List<Either<TagKey<T>, RegistryKey<T>>> data) {
+    public PawsConfigScreenHandler(
+        MenuType<? extends PawsConfigScreenHandler<T>> id, int syncId, Inventory playerInventory, List<Either<TagKey<T>, ResourceKey<T>>> data) {
         super(id, syncId);
-        this.inventory = new SimpleInventory(1) {
+        this.inventory = new SimpleContainer(1) {
             @Override
-            public void markDirty() {
-                super.markDirty();
-                PawsConfigScreenHandler.this.onContentChanged(this);
+            public void setChanged() {
+                super.setChanged();
+                PawsConfigScreenHandler.this.slotsChanged(this);
             }
         };
         this.data = (data == null) ? new ArrayList<>() : new ArrayList<>(data);
         this.listToDisplay = data;
-        this.world = playerInventory.player.getWorld();
-        inventory.onOpen(playerInventory.player);
+        this.world = playerInventory.player.level();
+        inventory.startOpen(playerInventory.player);
 
         this.addSlot(new Slot(inventory, 0, 175, 108) {
             @Override
-            public boolean canTakePartial(PlayerEntity playerEntity) {
+            public boolean allowModification(Player playerEntity) {
                 return false;
             }
 
             @Override
-            public Optional<ItemStack> tryTakeStackRange(int min, int max, PlayerEntity player) {
-                setStack(ItemStack.EMPTY);
+            public Optional<ItemStack> tryRemove(int min, int max, Player player) {
+                set(ItemStack.EMPTY);
                 return Optional.of(ItemStack.EMPTY);
             }
 
             @Override
-            public ItemStack takeStack(int amount) {
-                setStack(ItemStack.EMPTY);
+            public ItemStack remove(int amount) {
+                set(ItemStack.EMPTY);
                 return ItemStack.EMPTY;
             }
 
             @Override
-            public ItemStack insertStack(ItemStack stack) {
-                this.inventory.setStack(0, stack.copyWithCount(1));
+            public ItemStack safeInsert(ItemStack stack) {
+                this.container.setItem(0, stack.copyWithCount(1));
                 return stack;
             }
         });
@@ -86,26 +86,26 @@ public abstract class PawsConfigScreenHandler<T extends ItemConvertible> extends
     }
 
     @Override
-    public ItemStack quickMove(PlayerEntity player, int slot) {
-        this.inventory.setStack(0, getSlot(slot).getStack().copyWithCount(1));
+    public ItemStack quickMoveStack(Player player, int slot) {
+        this.inventory.setItem(0, getSlot(slot).getItem().copyWithCount(1));
         return ItemStack.EMPTY;
     }
 
     @Override
-    public void onSlotClick(int slotIndex, int button, SlotActionType actionType, PlayerEntity player) {
+    public void clicked(int slotIndex, int buttonNum, ContainerInput containerInput, Player player) {
         if (slotIndex == 0) {
-            ItemStack is = this.getCursorStack();
-            if (is == null) is = ItemStack.EMPTY;
-            this.inventory.setStack(0, is.copyWithCount(1));
+            ItemStack is = this.getCarried();
+            this.inventory.setItem(0, is.copyWithCount(1));
             return;
         }
-        super.onSlotClick(slotIndex, button, actionType, player);
+        super.clicked(slotIndex, buttonNum, containerInput, player);
     }
 
     @Override
-    public boolean onButtonClick(PlayerEntity player, int id) {
+    public boolean clickMenuButton(Player player, int id) {
         if (id < 0) return false;
-        if (inventory.getStack(0).isEmpty()) {
+        if (inventory.getItem(
+            0).isEmpty()) {
             if (id >= data.size()) return false;
             data.remove(id);
         } else {
@@ -121,44 +121,44 @@ public abstract class PawsConfigScreenHandler<T extends ItemConvertible> extends
     }
 
     @Override
-    public boolean canUse(PlayerEntity player) {
+    public boolean stillValid(Player player) {
         return true;
     }
 
     @Override
-    public void onContentChanged(Inventory inventory) {
-        super.onContentChanged(inventory);
-        ItemStack is = inventory.getStack(0);
+    public void slotsChanged(Container inventory) {
+        super.slotsChanged(inventory);
+        ItemStack is = inventory.getItem(0);
         this.listToDisplay = is.isEmpty() ? data : genForItem(is.getItem());
     }
 
-    protected abstract List<Either<TagKey<T>, RegistryKey<T>>> genForItem(Item item);
+    protected abstract List<Either<TagKey<T>, ResourceKey<T>>> genForItem(Item item);
 
-    public abstract RegistryKey<Registry<T>> getRegistryKey();
+    public abstract ResourceKey<Registry<T>> getRegistryKey();
 
     public static class PawsBlockConfigScreenHandler extends PawsConfigScreenHandler<Block> {
-        public PawsBlockConfigScreenHandler(int syncId, PlayerInventory playerInventory, List<Either<TagKey<Block>, RegistryKey<Block>>> data) {
+        public PawsBlockConfigScreenHandler(int syncId, Inventory playerInventory, List<Either<TagKey<Block>, ResourceKey<Block>>> data) {
             super(PlayerCollarsMod.PAWS_BLOCK_CONFIG_SCREEN_HANDLER, syncId, playerInventory, data);
         }
 
-        protected List<Either<TagKey<Block>, RegistryKey<Block>>> genForItem(Item item) {
+        protected List<Either<TagKey<Block>, ResourceKey<Block>>> genForItem(Item item) {
             if (!(item instanceof BlockItem bi)) return List.of();
-            RegistryEntry<Block> entry = world.getRegistryManager().getOrThrow(RegistryKeys.BLOCK).getEntry(bi.getBlock());
-            Stream<Either<TagKey<Block>, RegistryKey<Block>>> tags = entry.streamTags().map(Either::left);
-            if (entry.getKey().isPresent()) {
-                tags = Stream.concat(Stream.of(Either.right(entry.getKey().get())), tags);
+            Holder<Block> entry = world.registryAccess().lookupOrThrow(Registries.BLOCK).wrapAsHolder(bi.getBlock()) ;
+            Stream<Either<TagKey<Block>, ResourceKey<Block>>> tags = entry.tags().map(Either::left);
+            if (entry.unwrapKey().isPresent()) {
+                tags = Stream.concat(Stream.of(Either.right(entry.unwrapKey().get())), tags);
             }
             return tags.toList();
         }
 
         @Override
-        public RegistryKey<Registry<Block>> getRegistryKey() {
-            return RegistryKeys.BLOCK;
+        public ResourceKey<Registry<Block>> getRegistryKey() {
+            return Registries.BLOCK;
         }
 
         @Override
-        public void onClosed(PlayerEntity player) {
-            super.onClosed(player);
+        public void removed(Player player) {
+            super.removed(player);
             if (pawsStacks != null)
                 for (ItemStack ps : pawsStacks)
                     ps.set(PlayerCollarsMod.CAN_INTERACT_COMPONENT_TYPE, data.isEmpty() ? null : data);
@@ -166,27 +166,27 @@ public abstract class PawsConfigScreenHandler<T extends ItemConvertible> extends
     }
 
     public static class PawsItemConfigScreenHandler extends PawsConfigScreenHandler<Item> {
-        public PawsItemConfigScreenHandler(int syncId, PlayerInventory playerInventory, List<Either<TagKey<Item>, RegistryKey<Item>>> data) {
+        public PawsItemConfigScreenHandler(int syncId, Inventory playerInventory, List<Either<TagKey<Item>, ResourceKey<Item>>> data) {
             super(PlayerCollarsMod.PAWS_ITEM_CONFIG_SCREEN_HANDLER, syncId, playerInventory, data);
         }
 
-        protected List<Either<TagKey<Item>, RegistryKey<Item>>> genForItem(Item item) {
-            RegistryEntry<Item> entry = world.getRegistryManager().getOrThrow(RegistryKeys.ITEM).getEntry(item);
-            Stream<Either<TagKey<Item>, RegistryKey<Item>>> tags = entry.streamTags().map(Either::left);
-            if (entry.getKey().isPresent()) {
-                tags = Stream.concat(Stream.of(Either.right(entry.getKey().get())), tags);
+        protected List<Either<TagKey<Item>, ResourceKey<Item>>> genForItem(Item item) {
+            Holder<Item> entry = world.registryAccess().lookupOrThrow(Registries.ITEM).wrapAsHolder(item);
+            Stream<Either<TagKey<Item>, ResourceKey<Item>>> tags = entry.tags().map(Either::left);
+            if (entry.unwrapKey().isPresent()) {
+                tags = Stream.concat(Stream.of(Either.right(entry.unwrapKey().get())), tags);
             }
             return tags.toList();
         }
 
         @Override
-        public RegistryKey<Registry<Item>> getRegistryKey() {
-            return RegistryKeys.ITEM;
+        public ResourceKey<Registry<Item>> getRegistryKey() {
+            return Registries.ITEM;
         }
 
         @Override
-        public void onClosed(PlayerEntity player) {
-            super.onClosed(player);
+        public void removed(Player player) {
+            super.removed(player);
             if (pawsStacks != null)
                 for (ItemStack ps : pawsStacks)
                     ps.set(PlayerCollarsMod.HELD_ITEMS_COMPONENT_TYPE, data.isEmpty() ? null : data);

@@ -1,3 +1,6 @@
-accessWidener v2 named
+accessWidener v2 official
 
-accessible field net/minecraft/client/render/entity/model/PlayerEntityModel thinArms Z
+accessible method net/minecraft/core/Registry register (Lnet/minecraft/core/Registry;Lnet/minecraft/resources/Identifier;Ljava/lang/Object;)Ljava/lang/Object;
+accessible method net/minecraft/core/Registry register (Lnet/minecraft/core/Registry;Lnet/minecraft/resources/ResourceKey;Ljava/lang/Object;)Ljava/lang/Object;
+
+accessible field net/minecraft/client/model/player/PlayerModel slim Z

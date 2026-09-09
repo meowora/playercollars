@@ -1,7 +1,13 @@
 {
   "parent": "minecraft:recipes/root",
   "criteria": {
-    "has_purple_wool": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "playercollars:purple_paws"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "purple_wool": {
       "conditions": {
         "items": [
           {
@@ -10,18 +16,12 @@
         ]
       },
       "trigger": "minecraft:inventory_changed"
-    },
-    "has_the_recipe": {
-      "conditions": {
-        "recipe": "playercollars:purple_paws"
-      },
-      "trigger": "minecraft:recipe_unlocked"
     }
   },
   "requirements": [
     [
       "has_the_recipe",
-      "has_purple_wool"
+      "purple_wool"
     ]
   ],
   "rewards": {

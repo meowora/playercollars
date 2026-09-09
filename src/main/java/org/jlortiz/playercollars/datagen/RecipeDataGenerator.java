@@ -1,123 +1,123 @@
 package org.jlortiz.playercollars.datagen;
 
-import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
+import net.fabricmc.fabric.api.datagen.v1.FabricPackOutput;
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricRecipeProvider;
 import net.fabricmc.fabric.api.tag.convention.v2.ConventionalItemTags;
-import net.minecraft.data.recipe.RecipeExporter;
-import net.minecraft.data.recipe.RecipeGenerator;
-import net.minecraft.item.BedItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.Items;
-import net.minecraft.recipe.book.RecipeCategory;
-import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.registry.tag.ItemTags;
-import net.minecraft.util.DyeColor;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.data.recipes.RecipeCategory;
+import net.minecraft.data.recipes.RecipeOutput;
+import net.minecraft.data.recipes.RecipeProvider;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.item.BedItem;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import org.jlortiz.playercollars.PlayerCollarsMod;
 import org.jlortiz.playercollars.item.PawsItem;
 
 import java.util.concurrent.CompletableFuture;
 
 public class RecipeDataGenerator extends FabricRecipeProvider {
-    public RecipeDataGenerator(FabricDataOutput output, CompletableFuture<RegistryWrapper.WrapperLookup> registriesFuture) {
+    public RecipeDataGenerator(FabricPackOutput output, CompletableFuture<HolderLookup.Provider> registriesFuture) {
         super(output, registriesFuture);
     }
 
     @Override
-    protected RecipeGenerator getRecipeGenerator(RegistryWrapper.WrapperLookup wrapperLookup, RecipeExporter recipeExporter) {
-        return new RecipeGenerator(wrapperLookup, recipeExporter) {
+    protected RecipeProvider createRecipeProvider(HolderLookup.Provider registries, RecipeOutput output) {
+        return new RecipeProvider(registries, output) {
             @Override
-            public void generate() {
-                createShaped(RecipeCategory.MISC, PlayerCollarsMod.COLLAR_ITEM).pattern(" l ").pattern("lil").pattern(" d ")
-                        .input('l', Items.LEATHER)
-                        .input('i', ConventionalItemTags.GOLD_INGOTS)
-                        .input('d', ConventionalItemTags.DYES)
-                        .criterion(hasItem(Items.LEATHER), conditionsFromItem(Items.LEATHER))
-                        .offerTo(exporter);
-                createShaped(RecipeCategory.MISC, PlayerCollarsMod.TAGLESS_COLLAR_ITEM).pattern(" l ").pattern("ldl")
-                        .input('l', Items.LEATHER)
-                        .input('d', ConventionalItemTags.DYES)
-                        .criterion(hasItem(Items.LEATHER), conditionsFromItem(Items.LEATHER))
-                        .offerTo(exporter);
-                createShaped(RecipeCategory.MISC, PlayerCollarsMod.CLICKER_ITEM).pattern(" b ").pattern("pip").pattern(" p ")
-                        .input('b', ItemTags.BUTTONS)
-                        .input('i', ConventionalItemTags.IRON_INGOTS)
-                        .input('p', ItemTags.PLANKS)
-                        .criterion(hasItem(Items.IRON_INGOT), conditionsFromTag(ConventionalItemTags.IRON_INGOTS))
-                        .offerTo(exporter);
-                createShapeless(RecipeCategory.TOOLS, PlayerCollarsMod.PAW_CONFIGURATION_ITEM)
-                        .input(ConventionalItemTags.REDSTONE_DUSTS)
-                        .input(ConventionalItemTags.COPPER_INGOTS)
-                        .input(PlayerCollarsMod.COLLAR_LOCKER_ITEM)
-                        .criterion("has_paws", conditionsFromTag(PlayerCollarsMod.PAWS_TAG))
-                        .offerTo(exporter);
-                createShapeless(RecipeCategory.TOOLS, PlayerCollarsMod.COLLAR_LOCKER_ITEM)
-                        .input(ConventionalItemTags.REDSTONE_DUSTS)
-                        .input(Items.CHAIN)
-                        .input(Items.CHAIN)
-                        .input(Items.IRON_BARS)
-                        .criterion(hasItem(PlayerCollarsMod.DEED_OF_OWNERSHIP_STAMPED),
-                                conditionsFromItem(PlayerCollarsMod.DEED_OF_OWNERSHIP_STAMPED))
-                        .offerTo(exporter);
-                createShapeless(RecipeCategory.MISC, PlayerCollarsMod.DEED_OF_OWNERSHIP)
-                        .input(Items.PAPER)
-                        .input(Items.LEAD)
-                        .input(Items.INK_SAC)
-                        .input(Items.FEATHER)
-                        .criterion(hasItem(Items.PAPER), conditionsFromItem(Items.PAPER))
-                        .offerTo(exporter);
-                createShaped(RecipeCategory.BUILDING_BLOCKS, PlayerCollarsMod.INVISIBLE_FENCE_BLOCK_ITEM, 3).pattern("grg").pattern("srs")
-                        .input('r', Items.REDSTONE)
-                        .input('g', Items.GLASS_PANE)
-                        .input('s', Items.STONE)
-                        .criterion(hasItem(Items.REDSTONE), conditionsFromItem(Items.REDSTONE))
-                        .offerTo(exporter);
-                createShaped(RecipeCategory.TOOLS, PlayerCollarsMod.SPATULA_ITEM).pattern("  g").pattern(" g ").pattern("s  ")
-                        .input('g', ConventionalItemTags.GOLD_INGOTS)
-                        .input('s', Items.STICK)
-                        .criterion(hasItem(Items.GOLD_INGOT), conditionsFromTag(ConventionalItemTags.GOLD_INGOTS))
-                        .offerTo(exporter);
+            public void buildRecipes() {
+                shaped(RecipeCategory.MISC, PlayerCollarsMod.COLLAR_ITEM).pattern(" l ").pattern("lil").pattern(" d ")
+                        .define('l', Items.LEATHER)
+                        .define('i', ConventionalItemTags.GOLD_INGOTS)
+                        .define('d', ConventionalItemTags.DYES)
+                        .unlockedBy(getItemName(Items.LEATHER), has(Items.LEATHER))
+                        .save(output);
+                shaped(RecipeCategory.MISC, PlayerCollarsMod.TAGLESS_COLLAR_ITEM).pattern(" l ").pattern("ldl")
+                        .define('l', Items.LEATHER)
+                        .define('d', ConventionalItemTags.DYES)
+                        .unlockedBy(getItemName(Items.LEATHER), has(Items.LEATHER))
+                        .save(output);
+                shaped(RecipeCategory.MISC, PlayerCollarsMod.CLICKER_ITEM).pattern(" b ").pattern("pip").pattern(" p ")
+                        .define('b', ItemTags.WOODEN_BUTTONS)
+                        .define('i', ConventionalItemTags.IRON_INGOTS)
+                        .define('p', ItemTags.PLANKS)
+                        .unlockedBy(getItemName(Items.IRON_INGOT), has(ConventionalItemTags.IRON_INGOTS))
+                        .save(output);
+                shapeless(RecipeCategory.TOOLS, PlayerCollarsMod.PAW_CONFIGURATION_ITEM)
+                        .requires(ConventionalItemTags.REDSTONE_DUSTS)
+                        .requires(ConventionalItemTags.COPPER_INGOTS)
+                        .requires(PlayerCollarsMod.COLLAR_LOCKER_ITEM)
+                        .unlockedBy("has_paws", has(PlayerCollarsMod.PAWS_TAG))
+                        .save(output);
+                shapeless(RecipeCategory.TOOLS, PlayerCollarsMod.COLLAR_LOCKER_ITEM)
+                        .requires(ConventionalItemTags.CHAINS)
+                        .requires(ConventionalItemTags.CHAINS)
+                        .requires(ConventionalItemTags.REDSTONE_DUSTS)
+                        .requires(Items.IRON_BARS)
+                        .unlockedBy(getItemName(PlayerCollarsMod.DEED_OF_OWNERSHIP_STAMPED),
+                                has(PlayerCollarsMod.DEED_OF_OWNERSHIP_STAMPED))
+                        .save(output);
+                shapeless(RecipeCategory.MISC, PlayerCollarsMod.DEED_OF_OWNERSHIP)
+                        .requires(Items.PAPER)
+                        .requires(Items.LEAD)
+                        .requires(Items.INK_SAC)
+                        .requires(Items.FEATHER)
+                        .unlockedBy(getItemName(Items.PAPER), has(Items.PAPER))
+                        .save(output);
+                shaped(RecipeCategory.BUILDING_BLOCKS, PlayerCollarsMod.INVISIBLE_FENCE_BLOCK_ITEM, 3).pattern("grg").pattern("srs")
+                        .define('r', Items.REDSTONE)
+                        .define('g', Items.GLASS_PANE)
+                        .define('s', Items.STONE)
+                        .unlockedBy(getItemName(Items.REDSTONE), has(Items.REDSTONE))
+                        .save(output);
+                shaped(RecipeCategory.TOOLS, PlayerCollarsMod.SPATULA_ITEM).pattern("  g").pattern(" g ").pattern("s  ")
+                        .define('g', ConventionalItemTags.GOLD_INGOTS)
+                        .define('s', Items.STICK)
+                        .unlockedBy(getItemName(Items.GOLD_INGOT), has(ConventionalItemTags.GOLD_INGOTS))
+                        .save(output);
                 for (DyeColor c : DyeColor.values()) {
-                    generateBed(exporter, PlayerCollarsMod.DOG_BED_ITEMS[c.ordinal()], DatagenEntrypoint.WOOLS[c.ordinal()]);
-                    generateBowl(exporter, PlayerCollarsMod.DOG_BOWL_ITEMS[c.ordinal()], DatagenEntrypoint.TERRACOTTAS[c.ordinal()]);
+                    generateBed(output, PlayerCollarsMod.DOG_BED_ITEMS[c.ordinal()], DatagenEntrypoint.WOOLS[c.ordinal()]);
+                    generateBowl(output, PlayerCollarsMod.DOG_BOWL_ITEMS[c.ordinal()], DatagenEntrypoint.TERRACOTTAS[c.ordinal()]);
                 }
                 for (int i = 0; i < PlayerCollarsMod.PAWS_DYE_COLORS.length; i++) {
-                    generatePaws(exporter, PlayerCollarsMod.PAWS_ITEMS[i], DatagenEntrypoint.WOOLS[PlayerCollarsMod.PAWS_DYE_COLORS[i].ordinal()]);
-                    generateFootPaws(exporter, PlayerCollarsMod.FOOT_PAWS_ITEMS[i], DatagenEntrypoint.WOOLS[PlayerCollarsMod.PAWS_DYE_COLORS[i].ordinal()]);
+                    generatePaws(output, PlayerCollarsMod.PAWS_ITEMS[i], DatagenEntrypoint.WOOLS[PlayerCollarsMod.PAWS_DYE_COLORS[i].ordinal()]);
+                    generateFootPaws(output, PlayerCollarsMod.FOOT_PAWS_ITEMS[i], DatagenEntrypoint.WOOLS[PlayerCollarsMod.PAWS_DYE_COLORS[i].ordinal()]);
                 }
             }
 
-            private void generateBed(RecipeExporter exporter, BedItem output, Item input) {
-                createShaped(RecipeCategory.DECORATIONS, output).pattern("w w").pattern("www")
-                        .input('w', input)
-                        .criterion(hasItem(input), conditionsFromItem(input))
+            private void generateBed(RecipeOutput output, BedItem outputItem, Item define) {
+                shaped(RecipeCategory.DECORATIONS, outputItem).pattern("w w").pattern("www")
+                        .define('w', define)
+                        .unlockedBy(getItemName(define), has(define))
                         .group("dog_bed")
-                        .offerTo(exporter);
+                        .save(output);
             }
 
-            private void generatePaws(RecipeExporter exporter, PawsItem output, Item input) {
-                createShaped(RecipeCategory.MISC, output).pattern(" w ").pattern("wlw").pattern(" w ")
-                        .input('w', input)
-                        .input('l', Items.LEATHER)
-                        .criterion(hasItem(input), conditionsFromItem(input))
+            private void generatePaws(RecipeOutput output, PawsItem outputItem, Item define) {
+                shaped(RecipeCategory.MISC, outputItem).pattern(" w ").pattern("wlw").pattern(" w ")
+                        .define('w', define)
+                        .define('l', Items.LEATHER)
+                        .unlockedBy(getItemName(define), has(define))
                         .group("paws")
-                        .offerTo(exporter);
+                        .save(output);
             }
 
-            private void generateFootPaws(RecipeExporter exporter, Item output, Item input) {
-                createShaped(RecipeCategory.MISC, output).pattern(" w ").pattern(" w ").pattern("wlw")
-                        .input('w', input)
-                        .input('l', Items.LEATHER)
-                        .criterion(hasItem(Items.LEATHER), conditionsFromItem(Items.LEATHER))
+            private void generateFootPaws(RecipeOutput output, Item outputItem, Item define) {
+                shaped(RecipeCategory.MISC, outputItem).pattern(" w ").pattern(" w ").pattern("wlw")
+                        .define('w', define)
+                        .define('l', Items.LEATHER)
+                        .unlockedBy(getItemName(Items.LEATHER), has(Items.LEATHER))
                         .group("foot_paws")
-                        .offerTo(exporter);
+                        .save(output);
             }
 
-            private void generateBowl(RecipeExporter exporter, Item output, Item input) {
-                createShaped(RecipeCategory.DECORATIONS, output).pattern("w w").pattern("www")
-                        .input('w', input)
-                        .criterion(hasItem(input), conditionsFromItem(input))
+            private void generateBowl(RecipeOutput output, Item outputItem, Item define) {
+                shaped(RecipeCategory.DECORATIONS, outputItem).pattern("w w").pattern("www")
+                        .define('w', define)
+                        .unlockedBy(getItemName(define), has(define))
                         .group("dog_bowl")
-                        .offerTo(exporter);
+                        .save(output);
             }
         };
     }
@@ -126,4 +126,5 @@ public class RecipeDataGenerator extends FabricRecipeProvider {
     public String getName() {
         return PlayerCollarsMod.MOD_ID + "_recipe_generator";
     }
+
 }

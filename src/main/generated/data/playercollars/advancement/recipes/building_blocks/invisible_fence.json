@@ -1,7 +1,13 @@
 {
   "parent": "minecraft:recipes/root",
   "criteria": {
-    "has_redstone": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "playercollars:invisible_fence"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "redstone": {
       "conditions": {
         "items": [
           {
@@ -10,18 +16,12 @@
         ]
       },
       "trigger": "minecraft:inventory_changed"
-    },
-    "has_the_recipe": {
-      "conditions": {
-        "recipe": "playercollars:invisible_fence"
-      },
-      "trigger": "minecraft:recipe_unlocked"
     }
   },
   "requirements": [
     [
       "has_the_recipe",
-      "has_redstone"
+      "redstone"
     ]
   ],
   "rewards": {

@@ -1,5 +1,11 @@
 {
   "values": [
-    "#playercollars:foot_paws"
+    "playercollars:white_foot_paws",
+    "playercollars:light_gray_foot_paws",
+    "playercollars:gray_foot_paws",
+    "playercollars:black_foot_paws",
+    "playercollars:blue_foot_paws",
+    "playercollars:red_foot_paws",
+    "playercollars:purple_foot_paws"
   ]
 }

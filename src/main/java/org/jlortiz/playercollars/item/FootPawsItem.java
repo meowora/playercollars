@@ -1,34 +1,33 @@
 package org.jlortiz.playercollars.item;
 
-import io.wispforest.accessories.api.AccessoryItem;
-import io.wispforest.accessories.api.DropRule;
+import io.wispforest.accessories.api.core.AccessoryItem;
+import io.wispforest.accessories.api.events.DropRule;
 import io.wispforest.accessories.api.slot.SlotReference;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.DyedColorComponent;
-import net.minecraft.component.type.MapColorComponent;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.util.DyeColor;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.DyedItemColor;
+import net.minecraft.world.item.component.MapItemColor;
 import org.jlortiz.playercollars.PlayerCollarsMod;
 
 public class FootPawsItem extends AccessoryItem {
     public final int color, beansColor;
 
-    public FootPawsItem(RegistryKey<Item> key, int color, int beansColor) {
-        super(new Item.Settings().maxCount(1).registryKey(key)
-                .component(DataComponentTypes.DYED_COLOR, new DyedColorComponent(color | 0xFF000000, false))
-                .component(DataComponentTypes.MAP_COLOR, new MapColorComponent(beansColor))
+    public FootPawsItem(ResourceKey<Item> key, int color, int beansColor) {
+        super(new Item.Properties().stacksTo(1).setId(key)
+                .component(DataComponents.DYED_COLOR, new DyedItemColor(color | 0xFF000000))
+                .component(DataComponents.MAP_COLOR, new MapItemColor(beansColor))
         );
         this.color = color | 0xFF000000;
         this.beansColor = beansColor;
     }
 
-    public static RegistryKey<Item> getRegistryKey(DyeColor c) {
-        return RegistryKey.of(RegistryKeys.ITEM, Identifier.of(PlayerCollarsMod.MOD_ID, c.getName() + "_foot_paws"));
+    public static ResourceKey<Item> getRegistryKey(DyeColor c) {
+        return ResourceKey.create(Registries.ITEM, PlayerCollarsMod.id(c.getName() + "_foot_paws"));
     }
 
     @Override

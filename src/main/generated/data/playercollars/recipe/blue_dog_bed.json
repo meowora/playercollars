@@ -1,6 +1,5 @@
 {
   "type": "minecraft:crafting_shaped",
-  "category": "misc",
   "group": "dog_bed",
   "key": {
     "w": "minecraft:blue_wool"
@@ -10,7 +9,6 @@
     "www"
   ],
   "result": {
-    "count": 1,
     "id": "playercollars:blue_dog_bed"
   }
 }

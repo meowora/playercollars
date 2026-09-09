@@ -4,38 +4,42 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.wispforest.accessories.api.AccessoriesCapability;
 import io.wispforest.accessories.api.slot.SlotEntryReference;
-import net.minecraft.enchantment.EnchantmentEffectContext;
-import net.minecraft.enchantment.EnchantmentLevelBasedValue;
-import net.minecraft.enchantment.effect.EnchantmentEntityEffect;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.enchantment.EnchantedItemInUse;
+import net.minecraft.world.item.enchantment.LevelBasedValue;
+import net.minecraft.world.item.enchantment.effects.EnchantmentEntityEffect;
+import net.minecraft.world.phys.Vec3;
 import org.jlortiz.playercollars.OwnerComponent;
 import org.jlortiz.playercollars.PlayerCollarsMod;
 
 import java.util.List;
 
-public record RegenerationEnchantmentEffect(EnchantmentLevelBasedValue level) implements EnchantmentEntityEffect {
+public record RegenerationEnchantmentEffect(LevelBasedValue level) implements EnchantmentEntityEffect {
     public static final MapCodec<RegenerationEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(instance ->
             instance.group(
-                EnchantmentLevelBasedValue.CODEC.fieldOf("level").forGetter(RegenerationEnchantmentEffect::level)
+                LevelBasedValue.CODEC.fieldOf("level").forGetter(RegenerationEnchantmentEffect::level)
             ).apply(instance, RegenerationEnchantmentEffect::new));
 
     @Override
-    public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-        if (context.owner() == null) return;
-        AccessoriesCapability cap = AccessoriesCapability.get(context.owner());
+    public void apply(
+        ServerLevel serverLevel,
+        int enchantmentLevel,
+        EnchantedItemInUse item,
+        Entity entity,
+        Vec3 position) {
+        if (item.owner() == null) return;
+        AccessoriesCapability cap = AccessoriesCapability.get(item.owner());
         if (cap == null) return;
-        List<SlotEntryReference> ls = cap.getEquipped((x) -> x.isIn(PlayerCollarsMod.COLLAR_TAG));
+        List<SlotEntryReference> ls = cap.getEquipped((x) -> x.is(PlayerCollarsMod.COLLAR_TAG));
         for (SlotEntryReference p : ls) {
             OwnerComponent oc = p.stack().get(PlayerCollarsMod.OWNER_COMPONENT_TYPE);
             if (oc != null) {
-                PlayerEntity own = world.getPlayerByUuid(oc.uuid());
-                if (own != null && own.distanceTo(user) < 16) {
-                    context.owner().addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 40, level, false, false, false));
+                var own = serverLevel.getPlayerByUUID(oc.uuid());
+                if (own != null && own.distanceTo(item.owner()) < 16) {
+                    item.owner().addEffect(new MobEffectInstance(MobEffects.REGENERATION, 40, 1, false, false, false));
                     return;
                 }
             }
@@ -43,7 +47,7 @@ public record RegenerationEnchantmentEffect(EnchantmentLevelBasedValue level) im
     }
 
     @Override
-    public MapCodec<? extends EnchantmentEntityEffect> getCodec() {
+    public MapCodec<? extends EnchantmentEntityEffect> codec() {
         return CODEC;
     }
 }

@@ -1,7 +1,13 @@
 {
   "parent": "minecraft:recipes/root",
   "criteria": {
-    "has_lime_terracotta": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "playercollars:lime_dog_bowl"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "lime_terracotta": {
       "conditions": {
         "items": [
           {
@@ -10,18 +16,12 @@
         ]
       },
       "trigger": "minecraft:inventory_changed"
-    },
-    "has_the_recipe": {
-      "conditions": {
-        "recipe": "playercollars:lime_dog_bowl"
-      },
-      "trigger": "minecraft:recipe_unlocked"
     }
   },
   "requirements": [
     [
       "has_the_recipe",
-      "has_lime_terracotta"
+      "lime_terracotta"
     ]
   ],
   "rewards": {

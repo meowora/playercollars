@@ -1,13 +1,13 @@
 package org.jlortiz.playercollars.client;
 
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.command.argument.EntityAnchorArgumentType;
-import net.minecraft.entity.player.PlayerEntity;
+import com.mojang.authlib.minecraft.client.MinecraftClient;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.commands.arguments.EntityAnchorArgument;
+import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 
 public class RotationLerpHandler {
     private static final float timeToTurn = 0.25f;
@@ -16,29 +16,29 @@ public class RotationLerpHandler {
     private static float rotY;
     private static long millis;
 
-    public static void turnTowardsClick(WorldRenderContext ctx) {
+    public static void turnTowardsClick(LevelRenderContext levelRenderContext) {
         if (turnTimer < timeToTurn) {
-            ClientPlayerEntity p = MinecraftClient.getInstance().player;
+            Player p = Minecraft.getInstance().player;
             if (p == null) {
                 turnTimer = timeToTurn + 1;
                 return;
             }
             // FIXME: there has to be a real timer for this
-            long mils = Util.getEpochTimeMs();
+            long mils = Util.getEpochMillis();
             float delta = (mils - millis) / 1000f;
-            p.changeLookDirection(rotY * delta, rotX * delta);
+            p.turn(rotY * delta, rotX * delta);
             turnTimer += delta;
             millis = mils;
         }
     }
 
-    public static void beginClickTurn(Vec3d towards) {
-        PlayerEntity p = MinecraftClient.getInstance().player;
+    public static void beginClickTurn(Vec3 towards) {
+        Player p = Minecraft.getInstance().player;
         turnTimer = 0;
-        Vec3d pos = EntityAnchorArgumentType.EntityAnchor.EYES.positionAt(p).subtract(towards);
+        Vec3 pos = EntityAnchorArgument.Anchor.EYES.apply(p).subtract(towards);
         double d3 = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
-        rotX = MathHelper.wrapDegrees((float)((MathHelper.atan2(pos.y, d3) * MathHelper.DEGREES_PER_RADIAN) - p.getPitch())) / timeToTurn / 0.15f;
-        rotY = MathHelper.wrapDegrees((float)(-MathHelper.atan2(-pos.z, pos.x) * MathHelper.DEGREES_PER_RADIAN) + 90.0F - p.getYaw()) / timeToTurn / 0.15f;
-        millis = Util.getEpochTimeMs();
+        rotX = Mth.wrapDegrees((float)((Mth.atan2(pos.y, d3) * Mth.RAD_TO_DEG) - p.getXRot())) / timeToTurn / 0.15f;
+        rotY = Mth.wrapDegrees((float)(-Mth.atan2(-pos.z, pos.x) * Mth.RAD_TO_DEG) + 90.0F - p.getYRot()) / timeToTurn / 0.15f;
+        millis = Util.getEpochMillis();
     }
 }

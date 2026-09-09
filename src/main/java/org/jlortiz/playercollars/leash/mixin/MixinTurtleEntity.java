@@ -1,12 +1,12 @@
 package org.jlortiz.playercollars.leash.mixin;
 
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.passive.AnimalEntity;
-import net.minecraft.entity.passive.TurtleEntity;
-import net.minecraft.scoreboard.Team;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.world.World;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.animal.turtle.Turtle;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.scores.Team;
 import org.jlortiz.playercollars.leash.LeashProxyEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -15,22 +15,24 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Objects;
 
-@Mixin(TurtleEntity.class)
-public abstract class MixinTurtleEntity extends AnimalEntity {
-    protected MixinTurtleEntity(EntityType<? extends AnimalEntity> entityType, World world) {
-        super(entityType, world);
+@Mixin(Turtle.class)
+public abstract class MixinTurtleEntity extends Animal {
+
+
+    protected MixinTurtleEntity(EntityType<? extends Animal> type, Level level) {
+        super(type, level);
     }
 
-    @Inject(method = "readCustomDataFromNbt", at = @At("RETURN"))
+    @Inject(method = "readAdditionalSaveData", at = @At("RETURN"))
     private void leashplayers$onReadCustomDataFromNbt(CallbackInfo info) {
-        MinecraftServer server = getServer();
+        MinecraftServer server = level().getServer();
         if (server == null) return;
 
-        Team team = server.getScoreboard().getScoreHolderTeam(getNameForScoreboard());
+        Team team = server.getScoreboard().getPlayerTeam(getScoreboardName());
         if (team != null && Objects.equals(team.getName(), LeashProxyEntity.TEAM_NAME)) {
-            detachLeash();
+            dropLeash();
             setInvulnerable(false);
-            kill((ServerWorld) getWorld());
+            kill((ServerLevel) level());
         }
     }
 }

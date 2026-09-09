@@ -1,35 +1,37 @@
 package org.jlortiz.playercollars.client.screen;
 
+import com.mojang.authlib.minecraft.client.MinecraftClient;
 import com.mojang.datafixers.util.Either;
 import net.fabricmc.fabric.api.tag.FabricTagKey;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.EntryListWidget;
-import net.minecraft.item.ItemConvertible;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.tag.TagKey;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractSelectionList;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.core.Registry;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.ItemLike;
 
-public class TagLikeListWidget<T extends ItemConvertible> extends EntryListWidget<TagLikeListWidget<T>.TagEntry> {
-    private final RegistryKey<Registry<T>> registryKey;
+public class TagLikeListWidget<T extends ItemLike> extends AbstractSelectionList<TagLikeListWidget<T>.TagEntry> {
+    private final ResourceKey<Registry<T>> registryKey;
     private final Consumer<Integer> handleClick;
 
-    public TagLikeListWidget(int width, int height, int x, int y, int itemHeight, RegistryKey<Registry<T>> registryKey, Consumer<Integer> handleClick) {
-        super(MinecraftClient.getInstance(), width, height, y, itemHeight);
+    public TagLikeListWidget(int width, int height, int x, int y, int itemHeight, ResourceKey<Registry<T>> registryKey, Consumer<Integer> handleClick) {
+        super(Minecraft.getInstance(), width, height, y, itemHeight);
         this.registryKey = registryKey;
         this.handleClick = handleClick;
         setX(x);
     }
 
     @Override
-    protected void appendClickableNarrations(NarrationMessageBuilder builder) {
+    protected void updateWidgetNarration(NarrationElementOutput output) {
 
     }
 
@@ -39,16 +41,16 @@ public class TagLikeListWidget<T extends ItemConvertible> extends EntryListWidge
     }
 
     @Override
-    protected int getScrollbarX() {
+    protected int scrollBarX() {
         return getX() + getRowWidth();
     }
 
-    public void setList(List<Either<TagKey<T>, RegistryKey<T>>> stream) {
+    public void setList(List<Either<TagKey<T>, ResourceKey<T>>> stream) {
         List<TagEntry> entries = new ArrayList<>(stream.size());
         for (int i = 0; i < stream.size(); i++)
             entries.add(i, new TagEntry(i, stream.get(i)));
         replaceEntries(entries);
-        setScrollY(0);
+        setScrollAmount(0);
     }
 
     @Override
@@ -56,51 +58,54 @@ public class TagLikeListWidget<T extends ItemConvertible> extends EntryListWidge
         return getX() + 2;
     }
 
-    private class TransparentButton extends ButtonWidget {
+    private class TransparentButton extends Button {
         protected TransparentButton() {
-            super(0, 0, TagLikeListWidget.this.getRowWidth(), TagLikeListWidget.this.itemHeight,
-                    Text.empty(), (x) -> {}, ButtonWidget.DEFAULT_NARRATION_SUPPLIER);
+            super(0, 0, TagLikeListWidget.this.getRowWidth(), TagLikeListWidget.this.defaultEntryHeight,
+                    Component.empty(), (x) -> {}, Button.DEFAULT_NARRATION);
         }
 
+
+
+
         @Override
-        protected void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+        protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
             if (this.isHovered())
-                context.fill(getX(), getY(), getX() + getWidth(), getY() + height, 0x999999 + (142 << 24));
+                graphics.fill(getX(), getY(), getX() + getWidth(), getY() + height, 0x999999 + (142 << 24));
         }
     }
 
-    public class TagEntry extends EntryListWidget.Entry<TagEntry> {
-        private final Text label;
+    public class TagEntry extends AbstractSelectionList.Entry<TagEntry> {
+        private final Component label;
         private final TransparentButton button;
         private final int index;
 
-        private TagEntry(int index, Either<TagKey<T>, RegistryKey<T>> key) {
-            this.label = key.map(FabricTagKey::getName, (x) -> MinecraftClient.getInstance().world
-                    .getRegistryManager().getOrThrow(registryKey).getOptionalValue(x)
-                    .map((y) -> y.asItem().getName()).orElse(Text.literal("error!")));
+        private TagEntry(int index, Either<TagKey<T>, ResourceKey<T>> key) {
+            this.label = key.map(FabricTagKey::getName, (x) -> Minecraft.getInstance().level
+                    .registryAccess().lookupOrThrow(registryKey).getOptional(x)
+                    .map((y) -> y.asItem().getDefaultInstance().getHoverName()).orElse(Component.literal("error!")));
             this.button = new TransparentButton();
             this.index = index;
         }
 
         @Override
-        public void render(DrawContext context, int index, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered, float tickDelta) {
-            this.button.setPosition(x, y - 2);
-            this.button.render(context, mouseX, mouseY, tickDelta);
-            context.drawText(client.textRenderer, label, x, y - 1, 0xFFFFFF, false);
+        public void extractContent(GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
+            this.button.setPosition(x(), y() - 2);
+            this.button.extractContents(graphics, mouseX, mouseY, a);
+            graphics.text(minecraft.font, label, x(), y() - 1, 0xFFFFFF, false);
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (this.button.mouseClicked(mouseX, mouseY, button)) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            if (this.button.mouseClicked(event, doubleClick)) {
                 TagLikeListWidget.this.handleClick.accept(this.index);
                 return true;
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(event, doubleClick);
         }
 
         @Override
-        public boolean mouseReleased(double mouseX, double mouseY, int button) {
-            return this.button.mouseReleased(mouseX, mouseY, button);
+        public boolean mouseReleased(MouseButtonEvent event) {
+            return this.button.mouseReleased(event);
         }
     }
 }

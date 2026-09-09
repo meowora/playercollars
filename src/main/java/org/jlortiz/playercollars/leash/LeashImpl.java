@@ -1,12 +1,12 @@
 package org.jlortiz.playercollars.leash;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 
 public interface LeashImpl {
-    ActionResult leashplayers$interact(PlayerEntity plr, Hand hand);
+    InteractionResult leashplayers$interact(Player plr, InteractionHand hand);
 
     Entity leashplayers$getProxyLeashHolder();
 }

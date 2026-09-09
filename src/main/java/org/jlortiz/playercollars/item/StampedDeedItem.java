@@ -1,44 +1,34 @@
 package org.jlortiz.playercollars.item;
 
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import org.jlortiz.playercollars.OwnerComponent;
 import org.jlortiz.playercollars.PlayerCollarsMod;
 
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 public class StampedDeedItem extends Item {
-    public static final RegistryKey<Item> REGISTRY_KEY = RegistryKey.of(RegistryKeys.ITEM, Identifier.of(PlayerCollarsMod.MOD_ID, "stamped_deed_of_ownership"));
+    public static final ResourceKey<Item> REGISTRY_KEY = ResourceKey.create(Registries.ITEM, PlayerCollarsMod.id("stamped_deed_of_ownership"));
 
     public StampedDeedItem() {
-        super(new Item.Settings().maxCount(1).registryKey(REGISTRY_KEY));
+        super(new Item.Properties().stacksTo(1).setId(REGISTRY_KEY));
     }
 
     @Override
-    public Text getName(ItemStack stack) {
+    public Component getName(ItemStack stack) {
         OwnerComponent owner = stack.get(PlayerCollarsMod.OWNER_COMPONENT_TYPE);
-        if (owner == null || owner.ownedName().isEmpty()) return Text.translatable("item.playercollars.stamped_deed_of_ownership.invalid");
-        return Text.translatable("item.playercollars.stamped_deed_of_ownership", owner.ownedName().get());
+        if (owner == null || owner.ownedName().isEmpty()) return Component.translatable("item.playercollars.stamped_deed_of_ownership.invalid");
+        return Component.translatable("item.playercollars.stamped_deed_of_ownership", owner.ownedName().get());
     }
 
 
     @Override
-    public ItemStack getRecipeRemainder(ItemStack stack) {
-        return stack.copy();
-    }
-
-    @Override
-    public void appendTooltip(ItemStack stack, TooltipContext context, List<Text> tooltip, TooltipType type) {
-        super.appendTooltip(stack, context, tooltip, type);
-        OwnerComponent owner = stack.get(PlayerCollarsMod.OWNER_COMPONENT_TYPE);
-        if (owner != null) {
-            tooltip.add(Text.translatable("item.playercollars.collar.owner", owner.name()).formatted(Formatting.GRAY));
-        }
+    public @Nullable ItemStackTemplate getCraftingRemainder(ItemStack stack) {
+        return ItemStackTemplate.fromStack(stack);
     }
 }

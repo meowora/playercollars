@@ -1,7 +1,13 @@
 {
   "parent": "minecraft:recipes/root",
   "criteria": {
-    "has_stamped_deed_of_ownership": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "playercollars:collar_locker"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "stamped_deed_of_ownership": {
       "conditions": {
         "items": [
           {
@@ -10,18 +16,12 @@
         ]
       },
       "trigger": "minecraft:inventory_changed"
-    },
-    "has_the_recipe": {
-      "conditions": {
-        "recipe": "playercollars:collar_locker"
-      },
-      "trigger": "minecraft:recipe_unlocked"
     }
   },
   "requirements": [
     [
       "has_the_recipe",
-      "has_stamped_deed_of_ownership"
+      "stamped_deed_of_ownership"
     ]
   ],
   "rewards": {

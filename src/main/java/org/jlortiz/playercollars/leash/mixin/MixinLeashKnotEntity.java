@@ -1,30 +1,31 @@
 package org.jlortiz.playercollars.leash.mixin;
 
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.decoration.BlockAttachedEntity;
-import net.minecraft.entity.decoration.LeashKnotEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.world.World;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Interaction;
+import net.minecraft.world.entity.decoration.BlockAttachedEntity;
+import net.minecraft.world.entity.decoration.LeashFenceKnotEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 import org.jlortiz.playercollars.PlayerCollarsMod;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(LeashKnotEntity.class)
-public abstract class MixinLeashKnotEntity extends BlockAttachedEntity {
-    private MixinLeashKnotEntity(EntityType<? extends BlockAttachedEntity> entityType, World world) {
-        super(entityType, world);
-    }
+@Mixin(Entity.class)
+public abstract class MixinLeashKnotEntity {
+    @Shadow
+    private Level level;
 
-    @Inject(method = "interact", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/decoration/LeashKnotEntity;discard()V"), cancellable = true)
-    private void preventBreakKnot(PlayerEntity player, Hand hand, CallbackInfoReturnable<ActionResult> cir) {
-        World world = getWorld();
-        if (!world.isClient() && PlayerCollarsMod.blockLeashKnotBreak((ServerWorld) world, player, (LeashKnotEntity) (Object) this)) {
-            cir.setReturnValue(ActionResult.PASS);
+    @Inject(method = "dropAllLeashConnections", at = @At("HEAD"), cancellable = true)
+    public void test(Player player, CallbackInfoReturnable<Boolean> cir) {
+        if (!level.isClientSide() && PlayerCollarsMod.blockLeashKnotBreak((ServerLevel) level, player, (Entity) (Object) this)) {
+            cir.setReturnValue(false);
         }
     }
+
+
 }

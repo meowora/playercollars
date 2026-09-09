@@ -11,7 +11,9 @@
     "BoneItemMixin",
     "LivingEntityMixin",
     "PlayerEntityMixin",
-    "ServerPlayerEntityMixin"
+    "ServerPlayerEntityMixin",
+    "ItemStackMixin",
+    "Test"
   ],
   "client": [
     "ClientPlayerInteractionManagerMixin"

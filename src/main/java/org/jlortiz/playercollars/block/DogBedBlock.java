@@ -1,43 +1,43 @@
 package org.jlortiz.playercollars.block;
 
-import net.minecraft.block.*;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.block.piston.PistonBehavior;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.sound.BlockSoundGroup;
-import net.minecraft.util.DyeColor;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.shape.VoxelShape;
-import net.minecraft.world.BlockView;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.PushReaction;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jlortiz.playercollars.PlayerCollarsMod;
 
 public class DogBedBlock extends BedBlock {
-    private static final VoxelShape SHAPE = createCuboidShape(0, 0, 0, 16, 6, 16);
+    private static final VoxelShape SHAPE = cube(16, 6, 16);
 
-    public DogBedBlock(DyeColor color, RegistryKey<Block> key) {
-        super(color, AbstractBlock.Settings.create()
-                .sounds(BlockSoundGroup.WOOL).strength(0.2F).nonOpaque().burnable()
-                .pistonBehavior(PistonBehavior.DESTROY).registryKey(key));
+    public DogBedBlock(DyeColor color, ResourceKey<Block> key) {
+        super(color, BlockBehaviour.Properties.of()
+                .sound(SoundType.WOOL).strength(0.2F).ignitedByLava().noOcclusion()
+                .pushReaction(PushReaction.DESTROY).setId(key));
     }
 
     @Override
-    protected BlockRenderType getRenderType(BlockState state) {
-        return BlockRenderType.MODEL;
+    protected RenderShape getRenderShape(BlockState state) {
+        return RenderShape.MODEL;
     }
 
     @Override
-    protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 
-    @Override
-    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-        return null;
-    }
-
-    public static RegistryKey<Block> getRegistryKey(DyeColor c) {
-        return RegistryKey.of(RegistryKeys.BLOCK, Identifier.of(PlayerCollarsMod.MOD_ID, c.getName() + "_dog_bed"));
+    public static ResourceKey<Block> getRegistryKey(DyeColor c) {
+        return ResourceKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(PlayerCollarsMod.MOD_ID, c.getName() + "_dog_bed"));
     }
 }

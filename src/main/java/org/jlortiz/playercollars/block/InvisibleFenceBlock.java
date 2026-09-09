@@ -1,131 +1,163 @@
 package org.jlortiz.playercollars.block;
 
 import io.wispforest.accessories.api.AccessoriesCapability;
-import net.minecraft.block.*;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemPlacementContext;
-import net.minecraft.particle.DustParticleEffect;
-import net.minecraft.particle.ParticleUtil;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.state.StateManager;
-import net.minecraft.state.property.BooleanProperty;
-import net.minecraft.state.property.Properties;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.random.Random;
-import net.minecraft.util.shape.VoxelShape;
-import net.minecraft.util.shape.VoxelShapes;
-import net.minecraft.world.BlockView;
-import net.minecraft.world.World;
-import net.minecraft.world.WorldView;
-import net.minecraft.world.tick.ScheduledTickView;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.ParticleUtils;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.ScheduledTickAccess;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.FenceBlock;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.EntityCollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jlortiz.playercollars.PlayerCollarsMod;
 
 import java.util.List;
 import java.util.Optional;
 
 public class InvisibleFenceBlock extends FenceBlock {
-    public static final RegistryKey<Block> REGISTRY_KEY = RegistryKey.of(RegistryKeys.BLOCK, Identifier.of(PlayerCollarsMod.MOD_ID, "invisible_fence"));
-    public static final RegistryKey<Item> ITEM_REGISTRY_KEY = RegistryKey.of(RegistryKeys.ITEM, Identifier.of(PlayerCollarsMod.MOD_ID, "invisible_fence"));
-    public static final BooleanProperty POWERED = Properties.POWERED;
+    public static final ResourceKey<Block>
+        REGISTRY_KEY = ResourceKey.create(Registries.BLOCK, PlayerCollarsMod.id("invisible_fence"));
+    public static final ResourceKey<Item> ITEM_REGISTRY_KEY = ResourceKey.create(Registries.ITEM,  PlayerCollarsMod.id("invisible_fence"));
+    public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
-    public InvisibleFenceBlock(AbstractBlock.Settings settings) {
-        super(settings.registryKey(REGISTRY_KEY));
-        setDefaultState(this.getStateManager().getDefaultState().with(POWERED, false).with(WATERLOGGED, false));
+    public InvisibleFenceBlock(BlockBehaviour.Properties settings) {
+        super(settings.setId(REGISTRY_KEY));
+        registerDefaultState(this.getStateDefinition().any().setValue(POWERED, false).setValue(WATERLOGGED, false));
     }
 
     @Override
-    protected BlockRenderType getRenderType(BlockState state) {
-        return BlockRenderType.INVISIBLE;
+    protected RenderShape getRenderShape(BlockState state) {
+        return RenderShape.MODEL;
     }
 
-    protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-        super.appendProperties(builder);
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        super.createBlockStateDefinition(builder);
         builder.add(POWERED);
     }
 
     @Override
-    protected BlockState getStateForNeighborUpdate(BlockState state, WorldView world, ScheduledTickView tickView, BlockPos pos, Direction direction, BlockPos neighborPos, BlockState neighborState, Random random) {
-        state = super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-        if (neighborState.isOf(this) && neighborState.get(POWERED) != state.get(POWERED)) {
-            state = state.with(POWERED, neighborState.get(POWERED));
+    protected void updateIndirectNeighbourShapes(
+        BlockState state,
+        LevelAccessor level,
+        BlockPos pos,
+        @UpdateFlags int updateFlags,
+        int updateLimit) {
+        super.updateIndirectNeighbourShapes(state, level, pos, updateFlags, updateLimit);
+    }
+
+    @Override
+    protected BlockState updateShape(
+        BlockState state,
+        LevelReader level,
+        ScheduledTickAccess ticks,
+        BlockPos pos,
+        Direction directionToNeighbour,
+        BlockPos neighbourPos,
+        BlockState neighbourState,
+        RandomSource random) {
+        state = super.updateShape(state, level, ticks, pos, directionToNeighbour, neighbourPos, neighbourState, random);
+        if (neighbourState.is(this) && neighbourState.getValue(POWERED) != state.getValue(POWERED)) {
+            state = state.setValue(POWERED, neighbourState.getValue(POWERED));
         }
         return state;
     }
 
     @Override
-    protected VoxelShape getCameraCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-        return VoxelShapes.empty();
-    }
-
-    @Override
-    public BlockState getPlacementState(ItemPlacementContext ctx) {
-        BlockState state = super.getPlacementState(ctx);
-        BlockState neighbor = ctx.getWorld().getBlockState(ctx.getBlockPos().north());
-        boolean shouldPower = neighbor.isOf(this) && neighbor.get(POWERED);
+    public BlockState getStateForPlacement(BlockPlaceContext ctx) {
+        var state =  super.getStateForPlacement(ctx);
+        BlockState neighbor = ctx.getLevel().getBlockState(ctx.getClickedPos().north());
+        boolean shouldPower = neighbor.is(this) && neighbor.getValue(POWERED);
         if (!shouldPower) {
-            neighbor =  ctx.getWorld().getBlockState(ctx.getBlockPos().east());
-            shouldPower = neighbor.isOf(this) && neighbor.get(POWERED);
+            neighbor =  ctx.getLevel().getBlockState(ctx.getClickedPos().east());
+            shouldPower = neighbor.is(this) && neighbor.getValue(POWERED);
         }
         if (!shouldPower) {
-            neighbor =  ctx.getWorld().getBlockState(ctx.getBlockPos().south());
-            shouldPower = neighbor.isOf(this) && neighbor.get(POWERED);
+            neighbor =  ctx.getLevel().getBlockState(ctx.getClickedPos().south());
+            shouldPower = neighbor.is(this) && neighbor.getValue(POWERED);
         }
         if (!shouldPower) {
-            neighbor =  ctx.getWorld().getBlockState(ctx.getBlockPos().west());
-            shouldPower = neighbor.isOf(this) && neighbor.get(POWERED);
+            neighbor =  ctx.getLevel().getBlockState(ctx.getClickedPos().west());
+            shouldPower = neighbor.is(this) && neighbor.getValue(POWERED);
         }
-        if (shouldPower) state = state.with(POWERED, true);
+        if (shouldPower) state = state.setValue(POWERED, true);
         return state;
     }
 
     @Override
-    protected VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-        if (context instanceof EntityShapeContext e) {
-            if (state.get(POWERED) && e.getEntity() instanceof LivingEntity livingEntity) {
+    protected VoxelShape getCollisionShape(
+        BlockState state,
+        BlockGetter level,
+        BlockPos pos,
+        CollisionContext context) {
+        if (context instanceof EntityCollisionContext e) {
+            if (state.getValue(POWERED) && e.getEntity() instanceof LivingEntity livingEntity) {
                 AccessoriesCapability cap = AccessoriesCapability.get(livingEntity);
-                if (cap == null) return VoxelShapes.empty();
+                if (cap == null) return Shapes.empty();
 
-                return cap.getEquipped((y) -> y.isIn(PlayerCollarsMod.COLLAR_TAG)).isEmpty() ?
-                        VoxelShapes.empty() : super.getCollisionShape(state, world, pos, context);
+                return cap.getEquipped((y) -> y.is(PlayerCollarsMod.COLLAR_TAG)).isEmpty() ?
+                    Shapes.empty() : super.getCollisionShape(state, level, pos, context);
             }
             // Vertical collision is cached using EntityShapeContext.ABSENT.
             // This will be re-checked if something actually lands on the fence, so this is safe for players.
             // It can cause unusual behaviour if something tries to pathfind through it, so that is left disabled.
-            if (e.getEntity() == null) return super.getCollisionShape(state, world, pos, context);
+            if (e.getEntity() == null) return super.getCollisionShape(state, level, pos, context);
         }
-        return VoxelShapes.empty();
+        return Shapes.empty();
     }
 
     @Override
-    public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-        super.randomDisplayTick(state, world, pos, random);
-        if (state.get(POWERED) && random.nextFloat() < 0.25)
-            ParticleUtil.spawnParticlesAround(world, pos, 1, 0.5, 0.5, true, DustParticleEffect.DEFAULT);
+    public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
+        super.animateTick(state, level, pos, random);
+        if (state.getValue(POWERED) && random.nextFloat() < 0.25) {
+            ParticleUtils.spawnParticles(level, pos, 1, 0.5, 0.5, true, DustParticleOptions.REDSTONE);
+        }
     }
 
     @Override
-    protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-        if (world.isClient()) return ActionResult.PASS;
-        if (!Optional.ofNullable(AccessoriesCapability.get(player)).map((x) -> x.getEquipped((y) -> y.isIn(PlayerCollarsMod.COLLAR_TAG)))
-                .map(List::isEmpty).orElse(true)) {
-            player.sendMessage(Text.translatable("block.playercollars.invisible_fence.toggle_fail").formatted(Formatting.RED), true);
-            return ActionResult.FAIL;
+    protected InteractionResult useWithoutItem(
+        BlockState state,
+        Level level,
+        BlockPos pos,
+        Player player,
+        BlockHitResult hitResult) {
+        if (level.isClientSide()) return InteractionResult.PASS;
+        if (!Optional.ofNullable(AccessoriesCapability.get(player)).map((x) -> x.getEquipped((y) -> y.is(PlayerCollarsMod.COLLAR_TAG)))
+            .map(List::isEmpty).orElse(true)) {
+            player.sendOverlayMessage(Component.translatable("block.playercollars.invisible_fence.toggle_fail").withStyle(ChatFormatting.RED));
+            return InteractionResult.FAIL;
         }
-        state = state.with(POWERED, !state.get(POWERED));
-        world.setBlockState(pos, state, 7);
-        player.sendMessage(Text.translatable(
-                state.get(POWERED) ? "block.playercollars.invisible_fence.toggle_on"
-                        : "block.playercollars.invisible_fence.toggle_off")
-                .formatted(Formatting.GREEN), true);
-        return ActionResult.SUCCESS;
+        state = state.setValue(POWERED, !state.getValue(POWERED));
+        level.setBlock(pos, state, Block.UPDATE_NEIGHBORS | Block.UPDATE_INVISIBLE | Block.UPDATE_CLIENTS);
+        player.sendOverlayMessage(Component.translatable(
+                state.getValue(POWERED) ? "block.playercollars.invisible_fence.toggle_on"
+                    : "block.playercollars.invisible_fence.toggle_off")
+            .withStyle(ChatFormatting.GREEN));
+        return InteractionResult.SUCCESS;
     }
 }

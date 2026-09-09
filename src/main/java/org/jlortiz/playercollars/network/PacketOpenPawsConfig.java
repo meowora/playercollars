@@ -1,60 +1,65 @@
 package org.jlortiz.playercollars.network;
 
+import io.netty.buffer.ByteBuf;
 import io.wispforest.accessories.api.AccessoriesCapability;
 import io.wispforest.accessories.api.slot.SlotEntryReference;
+import io.wispforest.accessories.compat.config.client.ExtendedConfigScreen;
+import net.fabricmc.fabric.api.menu.v1.ExtendedMenuProvider;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.UUIDUtil;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.*;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.ItemStack;
 import org.jlortiz.playercollars.PlayerCollarsMod;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public record PacketOpenPawsConfig(UUID pawHolder, boolean heldItems) implements CustomPayload {
-    public static final CustomPayload.Id<PacketOpenPawsConfig> ID = new CustomPayload.Id<>(Identifier.of(PlayerCollarsMod.MOD_ID, "paws_config"));
-    public static final PacketCodec<RegistryByteBuf, PacketOpenPawsConfig> CODEC = PacketCodec.tuple(
-            Uuids.PACKET_CODEC, PacketOpenPawsConfig::pawHolder,
-            PacketCodecs.BOOLEAN, PacketOpenPawsConfig::heldItems,
+public record PacketOpenPawsConfig(UUID pawHolder, boolean heldItems) implements CustomPacketPayload {
+    public static final CustomPacketPayload.Type<PacketOpenPawsConfig> ID = new CustomPacketPayload.Type<>(PlayerCollarsMod.id("paws_config"));
+    public static final StreamCodec<ByteBuf, PacketOpenPawsConfig> CODEC = StreamCodec.composite(
+            UUIDUtil.STREAM_CODEC, PacketOpenPawsConfig::pawHolder,
+            ByteBufCodecs.BOOL, PacketOpenPawsConfig::heldItems,
             PacketOpenPawsConfig::new);
 
     @Override
-    public CustomPayload.Id<? extends CustomPayload> getId() {
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 
     public void handle(ServerPlayNetworking.Context context) {
         context.server().execute(() -> {
-            PlayerEntity pet = context.player().getWorld().getPlayerByUuid(pawHolder);
+            Player pet = context.player().level().getPlayerByUUID(pawHolder);
             if (pet == null) return;
             AccessoriesCapability cap = AccessoriesCapability.get(pet);
             if (cap == null) return;
 
-            ItemStack collarStack = PlayerCollarsMod.filterStacksByOwner(cap.getEquipped((y) -> y.isIn(PlayerCollarsMod.COLLAR_TAG)), context.player().getUuid(), pawHolder);
+            ItemStack collarStack = PlayerCollarsMod.filterStacksByOwner(cap.getEquipped((y) -> y.is(PlayerCollarsMod.COLLAR_TAG)), context.player().getUUID(), pawHolder);
             if (collarStack == null) {
-                context.player().sendMessage(Text.translatable("item.playercollars.paw_configurator.no_set_non_owner").formatted(Formatting.RED), true);
+                context.player().sendOverlayMessage(Component.translatable("item.playercollars.paw_configurator.no_set_non_owner").withStyle(ChatFormatting.RED));
                 return;
             }
 
-            List<SlotEntryReference> pawsStack = cap.getEquipped((y) -> y.isIn(PlayerCollarsMod.PAWS_TAG));
+            List<SlotEntryReference> pawsStack = cap.getEquipped((y) -> y.is(PlayerCollarsMod.PAWS_TAG));
             if (pawsStack.isEmpty()) {
-                context.player().sendMessage(Text.translatable("item.playercollars.paw_configurator.no_paws").formatted(Formatting.RED), true);
+                context.player().sendOverlayMessage(Component.translatable("item.playercollars.paw_configurator.no_paws").withStyle(
+                    ChatFormatting.RED));
                 return;
             }
 
-            context.player().openHandledScreen(new ExtendedScreenHandlerFactory<>() {
+            context.player().openMenu(new ExtendedMenuProvider() {
                 @Override
-                public ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
+                public AbstractContainerMenu createMenu(int syncId, Inventory playerInventory, Player player) {
                     ItemStack[] ps = new ItemStack[pawsStack.size()];
                     for (int i = 0; i < pawsStack.size(); i++)
                         ps[i] = pawsStack.get(i).stack();
@@ -69,13 +74,13 @@ public record PacketOpenPawsConfig(UUID pawHolder, boolean heldItems) implements
                 }
 
                 @Override
-                public Text getDisplayName() {
-                    return Text.translatable(heldItems ? "gui.playercollars.paw_configurator.item.title" :
+                public Component getDisplayName() {
+                    return Component.translatable(heldItems ? "gui.playercollars.paw_configurator.item.title" :
                             "gui.playercollars.paw_configurator.block.title", pet.getName());
                 }
 
                 @Override
-                public Object getScreenOpeningData(ServerPlayerEntity player) {
+                public Object getScreenOpeningData(ServerPlayer player) {
                     return Optional.ofNullable(pawsStack.get(0).stack().get(heldItems ?
                             PlayerCollarsMod.HELD_ITEMS_COMPONENT_TYPE :
                             PlayerCollarsMod.CAN_INTERACT_COMPONENT_TYPE)).orElse(List.of());

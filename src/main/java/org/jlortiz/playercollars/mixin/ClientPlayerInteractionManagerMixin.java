@@ -2,16 +2,16 @@ package org.jlortiz.playercollars.mixin;
 
 import io.wispforest.accessories.api.AccessoriesCapability;
 import io.wispforest.accessories.api.slot.SlotEntryReference;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.network.ClientPlayerInteractionManager;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 import org.jlortiz.playercollars.PlayerCollarsMod;
 import org.jlortiz.playercollars.item.PawsItem;
 import org.spongepowered.asm.mixin.Final;
@@ -22,16 +22,16 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(ClientPlayerInteractionManager.class)
+@Mixin(MultiPlayerGameMode.class)
 public class ClientPlayerInteractionManagerMixin {
 
-    @Shadow @Final private MinecraftClient client;
+    @Shadow @Final private Minecraft minecraft;
 
     @Unique
     private static boolean shouldPawsBlock(LivingEntity player, BlockState block) {
         AccessoriesCapability cap = AccessoriesCapability.get(player);
         if (cap == null) return false;
-        for (SlotEntryReference sr : cap.getEquipped((x) -> x.isIn(PlayerCollarsMod.PAWS_TAG))) {
+        for (SlotEntryReference sr : cap.getEquipped((x) -> x.is(PlayerCollarsMod.PAWS_TAG))) {
             if (PawsItem.shouldPreventBlockInteraction(sr.stack(), block)) {
                 return true;
             }
@@ -39,16 +39,20 @@ public class ClientPlayerInteractionManagerMixin {
         return false;
     }
 
-    @Inject(method="interactBlock", at=@At("HEAD"), cancellable = true)
-    private void playercollars$cancelPawInteractions(ClientPlayerEntity player, Hand hand, BlockHitResult hitResult, CallbackInfoReturnable<ActionResult> cir) {
+    @Inject(method="useItemOn", at=@At("HEAD"), cancellable = true)
+    private void playercollars$cancelPawInteractions(
+        LocalPlayer player,
+        InteractionHand hand,
+        BlockHitResult blockHit,
+        CallbackInfoReturnable<InteractionResult> cir) {
         if (player.isSpectator()) return;
-        BlockState block = this.client.world.getBlockState(hitResult.getBlockPos());
-        if (shouldPawsBlock(player, block)) cir.setReturnValue(ActionResult.PASS);
+        BlockState block = this.minecraft.level.getBlockState(blockHit.getBlockPos());
+        if (shouldPawsBlock(player, block)) cir.setReturnValue(InteractionResult.PASS);
     }
 
-    @Inject(method = "attackBlock", at = @At(value = "HEAD"), cancellable = true)
+    @Inject(method = "startDestroyBlock", at = @At(value = "HEAD"), cancellable = true)
     private void playercollars$cancelPawBreak(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
-        BlockState block = this.client.world.getBlockState(pos);
-        if (shouldPawsBlock(client.player, block)) cir.setReturnValue(false);
+        BlockState block = this.minecraft.level.getBlockState(pos);
+        if (shouldPawsBlock(minecraft.player, block)) cir.setReturnValue(false);
     }
 }

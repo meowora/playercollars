@@ -1,16 +1,18 @@
 package org.jlortiz.playercollars.client.screen;
 
+import com.mojang.authlib.minecraft.client.MinecraftClient;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.DyedColorComponent;
-import net.minecraft.component.type.MapColorComponent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.color.item.MapColor;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.DyedItemColor;
+import net.minecraft.world.item.component.MapItemColor;
 import org.jlortiz.playercollars.OwnerComponent;
 import org.jlortiz.playercollars.PlayerCollarsMod;
 import org.jlortiz.playercollars.item.CollarItem;
@@ -26,7 +28,7 @@ public class CollarDyeScreen extends Screen {
     private OwnerComponent owner;
 
     public CollarDyeScreen(ItemStack is, UUID plr) {
-        super(is.getName());
+        super(is.getHoverName());
         this.is = is;
         this.ownUUID = plr;
         initColor = CollarItem.getColor(is);
@@ -40,66 +42,58 @@ public class CollarDyeScreen extends Screen {
         int x = this.width / 2;
         int y = this.height / 2 - 30;
 
-        TextFieldWidget dyeField = new TextFieldWidget(this.textRenderer, x - 30, shouldPaw ? y : y + 25, 100, 20, Text.empty());
+        EditBox dyeField = new EditBox(this.font, x - 30, shouldPaw ? y : y + 25, 100, 20, Component.empty());
         dyeField.setMaxLength(6);
-        dyeField.setChangedListener((s) -> updateTextField(false, s));
-        dyeField.setTextPredicate((s) -> {
-            try {
-                Integer.parseInt(s, 16);
-            } catch (NumberFormatException e) {
-                return s.isEmpty();
-            }
-            return true;
-        });
-        dyeField.setText(Integer.toHexString(initColor));
-        this.addDrawableChild(dyeField);
+        dyeField.setResponder((s) -> updateTextField(false, s));
+        //dyeField.((s) -> {
+        //    try {
+        //        Integer.parseInt(s, 16);
+        //    } catch (NumberFormatException e) {
+        //        return s.isEmpty();
+        //    }
+        //    return true;
+        //});
+        dyeField.setValue(Integer.toHexString(initColor));
+        this.addRenderableWidget(dyeField);
 
         if (shouldPaw) {
-            TextFieldWidget pawField = new TextFieldWidget(this.textRenderer, x - 30, y + 25, 100, 20, Text.empty());
+            EditBox pawField = new EditBox(this.font, x - 30, y + 25, 100, 20, Component.empty());
             pawField.setMaxLength(6);
-            pawField.setChangedListener((s) -> updateTextField(true, s));
-            pawField.setTextPredicate((s) -> {
-                try {
-                    Integer.parseInt(s, 16);
-                } catch (NumberFormatException e) {
-                    return s.isEmpty();
-                }
-                return true;
-            });
-            pawField.setText(Integer.toHexString(initPaw));
-            this.addDrawableChild(pawField);
+            pawField.setResponder((s) -> updateTextField(true, s));
+            pawField.setValue(Integer.toHexString(initPaw));
+            this.addRenderableWidget(pawField);
         }
 
-        this.addDrawableChild(ButtonWidget.builder(Text.translatable("gui.done"), (btn) -> {
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.done"), (btn) -> {
             PacketUpdateCollar.OwnerState os = owner == null ? PacketUpdateCollar.OwnerState.DEL : (owner.uuid().equals(ownUUID) ? PacketUpdateCollar.OwnerState.ADD : PacketUpdateCollar.OwnerState.NOP);
             ClientPlayNetworking.send(new PacketUpdateCollar(is, os));
-            close();
-        }).dimensions(x + 5, y + 50, 75, 20).build());
-        this.addDrawableChild(ButtonWidget.builder(Text.translatable("gui.cancel"), (btn) -> {
-            is.set(DataComponentTypes.DYED_COLOR, new DyedColorComponent(initColor, true));
-            is.set(DataComponentTypes.MAP_COLOR, new MapColorComponent(initPaw));
-            close();
-        }).dimensions(x - 80, y + 50, 75, 20).build());
+            onClose();
+        }).bounds(x + 5, y + 50, 75, 20).build());
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.cancel"), (btn) -> {
+            is.set(DataComponents.DYED_COLOR, new DyedItemColor(initColor));
+            is.set(DataComponents.MAP_COLOR, new MapItemColor(initPaw));
+            onClose();
+        }).bounds(x - 80, y + 50, 75, 20).build());
 
-        ButtonWidget ownerButton = ButtonWidget.builder(Text.empty(), this::updateOwner).dimensions(x - 80, y + 72, 160, 20).build();
+        Button ownerButton = Button.builder(Component.empty(), this::updateOwner).bounds(x - 80, y + 72, 160, 20).build();
         if (owner == null) {
-            ownerButton.setMessage(Text.translatable("item.playercollars.collar.become_owner"));
+            ownerButton.setMessage(Component.translatable("item.playercollars.collar.become_owner"));
         } else if (owner.uuid().equals(ownUUID) && owner.owned().isEmpty()) {
-            ownerButton.setMessage(Text.translatable("item.playercollars.collar.remove_owner"));
+            ownerButton.setMessage(Component.translatable("item.playercollars.collar.remove_owner"));
         } else {
-            ownerButton.setMessage(Text.translatable("item.playercollars.collar.owner", owner.name()));
+            ownerButton.setMessage(Component.translatable("item.playercollars.collar.owner", owner.name()));
             ownerButton.active = false;
         }
-        this.addDrawableChild(ownerButton);
+        this.addRenderableWidget(ownerButton);
     }
 
-    private void updateOwner(ButtonWidget btn) {
+    private void updateOwner(Button btn) {
         if (owner == null) {
-            owner = new OwnerComponent(ownUUID, MinecraftClient.getInstance().getGameProfile().getName());
-            btn.setMessage(Text.translatable("item.playercollars.collar.remove_owner"));
+            owner = new OwnerComponent(ownUUID, Minecraft.getInstance().getGameProfile().name());
+            btn.setMessage(Component.translatable("item.playercollars.collar.remove_owner"));
         } else {
             owner = null;
-            btn.setMessage(Text.translatable("item.playercollars.collar.become_owner"));
+            btn.setMessage(Component.translatable("item.playercollars.collar.become_owner"));
         }
     }
 
@@ -111,23 +105,22 @@ public class CollarDyeScreen extends Screen {
             return;
         }
         if (paw) {
-            is.set(DataComponentTypes.MAP_COLOR, new MapColorComponent(col));
+            is.set(DataComponents.MAP_COLOR, new MapItemColor(col));
         } else {
-            is.set(DataComponentTypes.DYED_COLOR, new DyedColorComponent(col, true));
+            is.set(DataComponents.DYED_COLOR, new DyedItemColor(col));
         }
     }
 
     @Override
-    public void render(DrawContext p_281549_, int mouseX, int mouseY, float delta) {
-        renderBackground(p_281549_, mouseX, mouseY, delta);
-        super.render(p_281549_, mouseX, mouseY, delta);
-        p_281549_.drawText(textRenderer, Text.translatable("item.playercollars.collar"), this.width / 2 - 75, this.height / 2 + (shouldPaw ? -25 : 1), -1, true);
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+        super.extractRenderState(graphics, mouseX, mouseY, a);
+        graphics.text(font, Component.translatable("item.playercollars.collar"), this.width / 2 - 75, this.height / 2 + (shouldPaw ? -25 : 1), -1, true);
         if (shouldPaw)
-            p_281549_.drawText(textRenderer, Text.translatable("item.playercollars.collar.paw"), this.width / 2 - 75, this.height / 2 + 1, -1, true);
+            graphics.text(font, Component.translatable("item.playercollars.collar.paw"), this.width / 2 - 75, this.height / 2 + 1, -1, true);
     }
 
     @Override
-    public boolean shouldPause() {
+    public boolean isPauseScreen() {
         return false;
     }
 }

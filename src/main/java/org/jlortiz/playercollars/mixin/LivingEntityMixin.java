@@ -1,13 +1,13 @@
 package org.jlortiz.playercollars.mixin;
 
-import net.minecraft.block.BedBlock;
-import net.minecraft.block.BlockState;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import org.jlortiz.playercollars.block.DogBedBlock;
 import org.joml.Vector3f;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,17 +17,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin extends Entity {
-    public LivingEntityMixin(EntityType<?> type, World world) {
-        super(type, world);
+
+    public LivingEntityMixin(EntityType<?> type, Level level) {
+        super(type, level);
     }
 
-    @Inject(method="setPositionInBed", at = @At("HEAD"), cancellable = true, require=0)
+    @Inject(method="setPosToBed", at = @At("HEAD"), cancellable = true, require=0)
     private void correctDogBedHeight(BlockPos pos, CallbackInfo ci) {
-        BlockState state = getWorld().getBlockState(pos);
+        BlockState state = level().getBlockState(pos);
         if (state.getBlock() instanceof DogBedBlock) {
-            Vec3d vec = pos.toBottomCenterPos();
-            Vector3f off = state.get(BedBlock.FACING).getUnitVector().div(10);
-            setPosition(vec.add(off.x, 0.35, off.z));
+            Vec3 vec = Vec3.atBottomCenterOf(pos);
+            Vector3f off = state.getValue(BedBlock.FACING).getUnitVec3f().div(10, new Vector3f());
+            setPos(vec.add(off.x, 0.35, off.z));
             ci.cancel();
         }
     }

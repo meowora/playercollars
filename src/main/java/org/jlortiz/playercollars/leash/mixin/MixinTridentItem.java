@@ -1,11 +1,11 @@
 package org.jlortiz.playercollars.leash.mixin;
 
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.TridentItem;
-import net.minecraft.world.World;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TridentItem;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.level.Level;
 import org.jlortiz.playercollars.leash.LeashImpl;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,15 +20,20 @@ public class MixinTridentItem {
      * in onStoppedUsing by returning false when the trident has Riptide (f > 0.0F).
      */
     @Inject(
-            method = "onStoppedUsing(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Lnet/minecraft/entity/LivingEntity;I)Z",
+            method = "releaseUsing",
             at = @At("HEAD"),
             cancellable = true
     )
-    private void onStoppedUsing(ItemStack stack, World world, LivingEntity user, int remainingUseTicks, CallbackInfoReturnable<Boolean> cir) {
-        if (!(user instanceof PlayerEntity player)) return;
+    private void onStoppedUsing(
+        ItemStack itemStack,
+        Level level,
+        LivingEntity entity,
+        int remainingTime,
+        CallbackInfoReturnable<Boolean> cir) {
+        if (!(entity instanceof Player player)) return;
 
         if (player instanceof LeashImpl leash && leash.leashplayers$getProxyLeashHolder() != null) {
-            float f = EnchantmentHelper.getTridentSpinAttackStrength(stack, player);
+            float f = EnchantmentHelper.getTridentSpinAttackStrength(itemStack, player);
             if (f > 0.0F) {
                 cir.setReturnValue(false);
             }

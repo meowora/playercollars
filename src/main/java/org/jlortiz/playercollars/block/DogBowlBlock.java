@@ -1,156 +1,182 @@
 package org.jlortiz.playercollars.block;
 
-import net.minecraft.block.*;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.ConsumableComponent;
-import net.minecraft.component.type.FoodComponent;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.item.Items;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.state.StateManager;
-import net.minecraft.state.property.BooleanProperty;
-import net.minecraft.state.property.IntProperty;
-import net.minecraft.state.property.Properties;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.DyeColor;
-import net.minecraft.util.Hand;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.random.Random;
-import net.minecraft.util.shape.VoxelShape;
-import net.minecraft.util.shape.VoxelShapes;
-import net.minecraft.world.BlockView;
-import net.minecraft.world.World;
-import net.minecraft.world.WorldView;
-import net.minecraft.world.tick.ScheduledTickView;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.ContainerHelper;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.food.FoodProperties;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.Consumable;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.ScheduledTickAccess;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 import org.jlortiz.playercollars.PlayerCollarsMod;
 
 import java.util.Optional;
 
-public class DogBowlBlock extends Block implements BlockEntityProvider {
-    private static final VoxelShape SHAPE_BASE = VoxelShapes.union(
-            Block.createCuboidShape(2.0, 0.0, 1.0, 14.0, 5.0, 2.0),
-            Block.createCuboidShape(2.0, 0.0, 14.0, 14.0, 5.0, 15.0),
-            Block.createCuboidShape(1.0, 0.0, 1.0, 2.0, 5.0, 15.0),
-            Block.createCuboidShape(14.0, 0.0, 1.0, 15.0, 5.0, 15.0)
+public class DogBowlBlock extends Block implements EntityBlock {
+    private static final VoxelShape SHAPE_BASE = Shapes.or(
+            Block.box(2.0, 0.0, 1.0, 14.0, 5.0, 2.0),
+            Block.box(2.0, 0.0, 14.0, 14.0, 5.0, 15.0),
+            Block.box(1.0, 0.0, 1.0, 2.0, 5.0, 15.0),
+            Block.box(14.0, 0.0, 1.0, 15.0, 5.0, 15.0)
             );
     private static final VoxelShape[] SHAPE = new VoxelShape[] {
-            VoxelShapes.union(SHAPE_BASE, Block.createCuboidShape(2.0, 0.0, 2.0, 14.0, 1.0, 14.0)),
-            VoxelShapes.union(SHAPE_BASE, Block.createCuboidShape(2.0, 0.0, 2.0, 14.0, 2.0, 14.0)),
-            VoxelShapes.union(SHAPE_BASE, Block.createCuboidShape(2.0, 0.0, 2.0, 14.0, 4.0, 14.0)),
-            VoxelShapes.union(SHAPE_BASE, Block.createCuboidShape(2.0, 0.0, 2.0, 14.0, 6.0, 14.0))
+            Shapes.or(SHAPE_BASE, Block.box(2.0, 0.0, 2.0, 14.0, 1.0, 14.0)),
+            Shapes.or(SHAPE_BASE, Block.box(2.0, 0.0, 2.0, 14.0, 2.0, 14.0)),
+            Shapes.or(SHAPE_BASE, Block.box(2.0, 0.0, 2.0, 14.0, 4.0, 14.0)),
+            Shapes.or(SHAPE_BASE, Block.box(2.0, 0.0, 2.0, 14.0, 6.0, 14.0))
     };
-    public static final IntProperty LEVEL = Properties.AGE_3;
-    public static final BooleanProperty MILK = Properties.SNOWY;
+    public static final IntegerProperty LEVEL = BlockStateProperties.AGE_3;
+    public static final BooleanProperty MILK = BlockStateProperties.SNOWY;
     public final DyeColor color;
 
-    public DogBowlBlock(DyeColor c, Settings settings) {
+    public DogBowlBlock(DyeColor c, Properties settings) {
         super(settings);
         color = c;
-        setDefaultState(this.getStateManager().getDefaultState().with(LEVEL, 0).with(MILK, false));
+        registerDefaultState(this.getStateDefinition().any().setValue(LEVEL, 0).setValue(MILK, false));
     }
 
-    public static RegistryKey<Block> getRegistryKey(DyeColor c) {
-        return RegistryKey.of(RegistryKeys.BLOCK, Identifier.of(PlayerCollarsMod.MOD_ID, c.getName() + "_dog_bowl"));
+    public static ResourceKey<Block> getRegistryKey(DyeColor c) {
+        return ResourceKey.create(Registries.BLOCK, PlayerCollarsMod.id(c.getName() + "_dog_bowl"));
     }
 
     @Nullable
     @Override
-    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new DogBowlBlockEntity(pos, state);
     }
 
     @Override
-    protected BlockState getStateForNeighborUpdate(BlockState state, WorldView world, ScheduledTickView tickView, BlockPos pos, Direction direction, BlockPos neighborPos, BlockState neighborState, Random random) {
-        return direction == Direction.DOWN && !state.canPlaceAt(world, pos) ? Blocks.AIR.getDefaultState() :
-                super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
+    protected BlockState updateShape(
+        BlockState state,
+        LevelReader level,
+        ScheduledTickAccess ticks,
+        BlockPos pos,
+        Direction directionToNeighbour,
+        BlockPos neighbourPos,
+        BlockState neighbourState,
+        RandomSource random) {
+        return directionToNeighbour == Direction.DOWN && !state.canSurvive(level, pos) ? Blocks.AIR.defaultBlockState() :
+                super.updateShape(state, level, ticks, pos, directionToNeighbour, neighbourPos, neighbourState, random);
     }
 
     @Override
-    protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-        BlockPos blockPos = pos.down();
-        return hasTopRim(world, blockPos) || sideCoversSmallSquare(world, blockPos, Direction.UP);
+    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+        BlockPos blockPos = pos.below();
+        return canSupportRigidBlock(level, blockPos) || canSupportCenter(level, blockPos, Direction.UP);
     }
 
     @Override
-    protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-        int level = state.get(LEVEL);
+    protected VoxelShape getShape(BlockState state, BlockGetter world, BlockPos pos, CollisionContext context) {
+        int level = state.getValue(LEVEL);
         return (level < 0 || level > 3) ? SHAPE_BASE : SHAPE[level];
     }
 
-    protected ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-        if (stack.isEmpty()) return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-        if (!(world.getBlockEntity(pos) instanceof DogBowlBlockEntity be)) return ActionResult.FAIL;
-        if (stack.isOf(Items.MILK_BUCKET) && be.getCount() == 0) {
-            be.insert(stack);
-            state = state.with(MILK, true);
-            world.setBlockState(pos, state, 2);
-            if (!player.isCreative()) player.setStackInHand(hand, new ItemStack(Items.BUCKET));
-            player.playSound(SoundEvents.ITEM_BUCKET_EMPTY);
-            return ActionResult.SUCCESS;
+    @Override
+    protected InteractionResult useItemOn(
+        ItemStack itemStack,
+        BlockState state,
+        Level level,
+        BlockPos pos,
+        Player player,
+        InteractionHand hand,
+        BlockHitResult hitResult) {
+        if (itemStack.isEmpty()) return InteractionResult.TRY_WITH_EMPTY_HAND;
+        if (!(level.getBlockEntity(pos) instanceof DogBowlBlockEntity be)) return InteractionResult.FAIL;
+        if (itemStack.is(Items.MILK_BUCKET) && be.getCount() == 0) {
+            be.insert(itemStack);
+            state = state.setValue(MILK, true);
+            level.setBlock(pos, state, Block.UPDATE_CLIENTS);
+            if (!player.isCreative()) player.setItemInHand(hand, new ItemStack(Items.BUCKET));
+            player.playSound(SoundEvents.BUCKET_EMPTY);
+            return InteractionResult.SUCCESS;
         }
 
-        if (stack.get(DataComponentTypes.FOOD) == null) return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-        int decr = be.insert(stack);
+        if (itemStack.get(DataComponents.FOOD) == null) return InteractionResult.TRY_WITH_EMPTY_HAND;
+        int decr = be.insert(itemStack);
         if (decr > 0) {
-            stack.decrement(decr);
-            state = state.with(LEVEL, Math.min((be.getCount() + 20) / 21, 3));
-            world.setBlockState(pos, state, 2);
-            return ActionResult.SUCCESS;
+            itemStack.shrink(decr);
+            state = state.setValue(LEVEL, Math.min((be.getCount() + 20) / 21, 3));
+            level.setBlock(pos, state, Block.UPDATE_CLIENTS);
+            return InteractionResult.SUCCESS;
         }
-        return ActionResult.FAIL;
+        return InteractionResult.FAIL;
     }
 
     @Override
-    public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
-        if (world.getBlockEntity(pos) instanceof DogBowlBlockEntity be) be.drop();
-        return super.onBreak(world, pos, state, player);
+    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+        if (level.getBlockEntity(pos) instanceof DogBowlBlockEntity be) be.drop();
+        return super.playerWillDestroy(level, pos, state, player);
     }
 
     @Override
-    protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-        if (!(world.getBlockEntity(pos) instanceof DogBowlBlockEntity be)) return ActionResult.PASS;
+    protected InteractionResult useWithoutItem(
+        BlockState state,
+        Level level,
+        BlockPos pos,
+        Player player,
+        BlockHitResult hitResult) {
+        if (!(level.getBlockEntity(pos) instanceof DogBowlBlockEntity be)) return InteractionResult.PASS;
 
         ItemStack is = be.take();
-        if (is.isEmpty()) return ActionResult.PASS;
-        if (is.isOf(Items.MILK_BUCKET)) {
-            state = state.with(MILK, false);
-            world.setBlockState(pos, state, 2);
-            if (!world.isClient()) player.clearStatusEffects();
-            player.playSound(SoundEvents.ENTITY_GENERIC_DRINK.value());
-            return ActionResult.SUCCESS;
+        if (is.isEmpty()) return InteractionResult.PASS;
+        if (is.is(Items.MILK_BUCKET)) {
+            state = state.setValue(MILK, false);
+            level.setBlock(pos, state, Block.UPDATE_CLIENTS);
+            if (!level.isClientSide()) player.removeAllEffects();
+            player.playSound(SoundEvents.GENERIC_DRINK.value());
+            return InteractionResult.SUCCESS;
         }
 
-        state = state.with(LEVEL, Math.min((be.getCount() + 20) / 21, 3));
-        world.setBlockState(pos, state, 2);
+        state = state.setValue(LEVEL, Math.min((be.getCount() + 20) / 21, 3));
+        level.setBlock(pos, state, Block.UPDATE_CLIENTS);
 
-        FoodComponent food = is.get(DataComponentTypes.FOOD);
-        if (food != null && player.canConsume(food.canAlwaysEat())) {
-            ConsumableComponent consume = is.get(DataComponentTypes.CONSUMABLE);
+        FoodProperties food = is.get(DataComponents.FOOD);
+        if (food != null && player.canEat(food.canAlwaysEat())) {
+            Consumable consume = is.get(DataComponents.CONSUMABLE);
             if (consume == null) {
-                player.getHungerManager().eat(food);
+                player.getFoodData().eat(food);
             } else {
-                consume.finishConsumption(world, player, is);
+                consume.onConsume(level, player, is);
             }
-            return ActionResult.SUCCESS;
-        } else if (!player.giveItemStack(is)) {
-            player.dropItem(is, true);
+            return InteractionResult.SUCCESS;
+        } else if (!player.addItem(is)) {
+            player.drop(is, true);
         }
-        return ActionResult.CONSUME;
+        return InteractionResult.CONSUME;
     }
 
     @Override
-    protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(LEVEL, MILK);
     }
 
@@ -161,19 +187,18 @@ public class DogBowlBlock extends Block implements BlockEntityProvider {
             super(PlayerCollarsMod.DOG_BOWL_BLOCK_ENTITY, pos, state);
         }
 
+
         @Override
-        protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registryLookup) {
-            super.readNbt(nbt, registryLookup);
-            inBowl = Optional.of(nbt.getCompound("item"))
-                    .flatMap((x) -> ItemStack.fromNbt(registryLookup, x))
-                    .orElse(ItemStack.EMPTY);
+        protected void loadAdditional(ValueInput input) {
+            super.loadAdditional(input);
+            inBowl = input.read("item", ItemStack.OPTIONAL_CODEC).orElse(ItemStack.EMPTY);
         }
 
         @Override
-        protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registryLookup) {
-            super.writeNbt(nbt, registryLookup);
+        protected void saveAdditional(ValueOutput output) {
+            super.saveAdditional(output);;
             if (!inBowl.isEmpty())
-                nbt.put("item", inBowl.toNbt(registryLookup));
+                output.store("item", ItemStack.OPTIONAL_CODEC, inBowl);
         }
 
         protected int getCount() {
@@ -183,13 +208,13 @@ public class DogBowlBlock extends Block implements BlockEntityProvider {
         protected int insert(ItemStack is) {
             if (inBowl.isEmpty()) {
                 inBowl = is.copy();
-                markDirty();
+                setChanged();
                 return is.getCount();
             }
-            if (is.isOf(inBowl.getItem())) {
-                int count = Math.min(is.getCount(), inBowl.getMaxCount() - inBowl.getCount());
-                inBowl.increment(count);
-                markDirty();
+            if (is.is(inBowl.getItem())) {
+                int count = Math.min(is.getCount(), inBowl.getMaxStackSize() - inBowl.getCount());
+                inBowl.grow(count);
+                setChanged();
                 return count;
             }
             return 0;
@@ -198,14 +223,14 @@ public class DogBowlBlock extends Block implements BlockEntityProvider {
         protected ItemStack take() {
             if (inBowl.isEmpty()) return ItemStack.EMPTY;
             ItemStack is = inBowl.copyWithCount(1);
-            inBowl.decrement(1);
-            markDirty();
+            inBowl.shrink(1);
+            setChanged();
             return is;
         }
 
         protected void drop() {
-            if (inBowl.isEmpty() || inBowl.isOf(Items.MILK_BUCKET) || world == null) return;
-            world.spawnEntity(new ItemEntity(world, pos.getX(), pos.getY(), pos.getZ(), inBowl));
+            if (inBowl.isEmpty() || inBowl.is(Items.MILK_BUCKET) || level == null) return;
+            level.addFreshEntity(new ItemEntity(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), inBowl));
             inBowl = ItemStack.EMPTY;
         }
     }
